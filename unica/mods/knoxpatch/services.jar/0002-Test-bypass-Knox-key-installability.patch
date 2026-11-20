@@ -11,10 +11,10 @@ still fails later, the remaining failure is below the framework layer.
  .../server/knox/dar/DarManagerService.smali        | 4 ++++
  1 file changed, 4 insertions(+)
 
-diff --git a/smali/com/android/server/knox/dar/DarManagerService.smali b/smali/com/android/server/knox/dar/DarManagerService.smali
+diff --git a/smali_classes2/com/android/server/knox/dar/DarManagerService.smali b/smali_classes2/com/android/server/knox/dar/DarManagerService.smali
 index e507b8f7..00000000 100644
---- a/smali/com/android/server/knox/dar/DarManagerService.smali
-+++ b/smali/com/android/server/knox/dar/DarManagerService.smali
+--- a/smali_classes2/com/android/server/knox/dar/DarManagerService.smali
++++ b/smali_classes2/com/android/server/knox/dar/DarManagerService.smali
 @@ -1708,6 +1708,10 @@
  .end method
  

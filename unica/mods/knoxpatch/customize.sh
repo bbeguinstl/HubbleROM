@@ -8,18 +8,23 @@ DELETE_FROM_WORK_DIR "system" "system/lib64/vendor.samsung.hardware.security.wsm
 # Add KnoxPatchHooks
 APPLY_PATCH "system" "system/framework/framework.jar" \
     "$MODPATH/framework.jar/0001-Introduce-KnoxPatchHooks.patch"
-SMALI_PATCH "system" "system/framework/framework.jar" \
-    "smali/android/app/Instrumentation.smali" "replace" \
-    'newApplication(Ljava/lang/Class;Landroid/content/Context;)Landroid/app/Application;' \
-    'return-object p0' \
-    '    invoke-static {p1}, Lio/mesalabs/unica/KnoxPatchHooks;->init(Landroid/content/Context;)V\n\n    return-object p0' \
-    > /dev/null
-SMALI_PATCH "system" "system/framework/framework.jar" \
-    "smali/android/app/Instrumentation.smali" "replace" \
-    'newApplication(Ljava/lang/ClassLoader;Ljava/lang/String;Landroid/content/Context;)Landroid/app/Application;' \
-    'return-object p0' \
-    '    invoke-static {p3}, Lio/mesalabs/unica/KnoxPatchHooks;->init(Landroid/content/Context;)V\n\n    return-object p0' \
-    > /dev/null
+FRAMEWORK_APK="$APKTOOL_DIR/system/framework/framework.jar"
+INSTRUMENTATION_SMALI="$(find "$FRAMEWORK_APK" -type f -path '*/android/app/Instrumentation.smali' -printf '%P\n' -quit)"
+if ! grep -q -F 'KnoxPatchHooks;->init(Landroid/content/Context;)V' "$FRAMEWORK_APK/$INSTRUMENTATION_SMALI"; then
+    SMALI_PATCH "system" "system/framework/framework.jar" \
+        "$INSTRUMENTATION_SMALI" "replace" \
+        'newApplication(Ljava/lang/Class;Landroid/content/Context;)Landroid/app/Application;' \
+        'return-object p0' \
+        '    invoke-static {p1}, Lio/mesalabs/unica/KnoxPatchHooks;->init(Landroid/content/Context;)V\n\n    return-object p0' \
+        > /dev/null
+    SMALI_PATCH "system" "system/framework/framework.jar" \
+        "$INSTRUMENTATION_SMALI" "replace" \
+        'newApplication(Ljava/lang/ClassLoader;Ljava/lang/String;Landroid/content/Context;)Landroid/app/Application;' \
+        'return-object p0' \
+        '    invoke-static {p3}, Lio/mesalabs/unica/KnoxPatchHooks;->init(Landroid/content/Context;)V\n\n    return-object p0' \
+        > /dev/null
+fi
+unset FRAMEWORK_APK INSTRUMENTATION_SMALI
 APPLY_PATCH "system" "system/framework/knoxsdk.jar" \
     "$MODPATH/knoxsdk.jar/0001-Introduce-KnoxPatchHooks.patch"
 
@@ -27,25 +32,38 @@ APPLY_PATCH "system" "system/framework/knoxsdk.jar" \
 SMALI_PATCH "system" "system/framework/samsungkeystoreutils.jar" \
     "smali/com/samsung/android/security/keystore/AttestParameterSpec.smali" "return" \
     'isVerifiableIntegrity()Z' 'true'
-APPLY_PATCH "system" "system/framework/services.jar" \
-    "$MODPATH/services.jar/0001-Bypass-ICD-verification.patch"
+# The One UI 9.5 beta changed the ICD attestation flow. Its older reflected
+# mVerifiableIntegrity patch no longer matches; keep the donor implementation.
+LOG "- Skipping legacy ICD attestation patch (not present in this beta)"
 APPLY_PATCH "system" "system/framework/services.jar" \
     "$MODPATH/services.jar/0002-Test-bypass-Knox-key-installability.patch"
 
 # Disable SAK in DarManagerService
-SMALI_PATCH "system" "system/framework/services.jar" \
-    "smali/com/android/server/knox/dar/DarManagerService.smali" "return" \
-    'checkDeviceIntegrity([Ljava/security/cert/Certificate;)Z' 'true'
+DAR_MANAGER_SMALI="$APKTOOL_DIR/system/framework/services.jar/smali_classes2/com/android/server/knox/dar/DarManagerService.smali"
+if [ -f "$DAR_MANAGER_SMALI" ]; then
+    SMALI_PATCH "system" "system/framework/services.jar" \
+        "smali_classes2/com/android/server/knox/dar/DarManagerService.smali" "return" \
+        'checkDeviceIntegrity([Ljava/security/cert/Certificate;)Z' 'true'
+else
+    LOG "- DarManagerService class not present; skipping SAK hook"
+fi
 
 # Disable DRK in DarManagerService
-SMALI_PATCH "system" "system/framework/services.jar" \
-    "smali/com/android/server/knox/dar/DarManagerService.smali" "return" \
-    'isDeviceRootKeyInstalled()Z' 'true'
+if [ -f "$DAR_MANAGER_SMALI" ]; then
+    SMALI_PATCH "system" "system/framework/services.jar" \
+        "smali_classes2/com/android/server/knox/dar/DarManagerService.smali" "return" \
+        'isDeviceRootKeyInstalled()Z' 'true'
+fi
 
 # Disable root checks in StorageManagerService
-SMALI_PATCH "system" "system/framework/services.jar" \
-    "smali/com/android/server/StorageManagerService.smali" "return" \
-    'isRootedDevice()Z' 'false'
+STORAGE_MANAGER_SMALI="$APKTOOL_DIR/system/framework/services.jar/smali/com/android/server/StorageManagerService.smali"
+if [ -f "$STORAGE_MANAGER_SMALI" ] && grep -q 'isRootedDevice()Z' "$STORAGE_MANAGER_SMALI"; then
+    SMALI_PATCH "system" "system/framework/services.jar" \
+        "smali/com/android/server/StorageManagerService.smali" "return" \
+        'isRootedDevice()Z' 'false'
+else
+    LOG "- StorageManagerService root-check hook not present in this beta; skipping"
+fi
 
 # Spoof ROT/IntegrityStatus in Knox Matrix
 if [ -f "$WORK_DIR/system/system/priv-app/KmxService/KmxService.apk" ]; then

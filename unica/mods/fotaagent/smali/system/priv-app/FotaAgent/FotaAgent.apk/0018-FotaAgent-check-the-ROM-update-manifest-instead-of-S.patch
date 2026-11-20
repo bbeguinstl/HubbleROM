@@ -240,20 +240,17 @@ index 9a3461a..f64aa0f 100644
      move-result-wide v0
  
 diff --git a/smali/com/idm/fotaagent/restapi/restclient/polling/state/PollingStartState.smali b/smali/com/idm/fotaagent/restapi/restclient/polling/state/PollingStartState.smali
-index 3b6ac1b..24523ca 100644
 --- a/smali/com/idm/fotaagent/restapi/restclient/polling/state/PollingStartState.smali
 +++ b/smali/com/idm/fotaagent/restapi/restclient/polling/state/PollingStartState.smali
-@@ -128,179 +128,36 @@
+@@ -127,106 +127,18 @@
+     return-void
  .end method
  
  .method public onExecute()V
 -    .locals 3
 +    .locals 2
  
-+    # UN1CA: the periodic check reads the ROM update manifest
-+    # (io.unica.fota.UpdateChecker) instead of the Samsung version.xml. When
-+    # it cannot be read, keep the alarm so the check is retried, as the
-+    # stock code does on network errors.
++    # UN1CA: poll the ROM manifest instead of Samsung's version.xml.
      iget-object v0, p0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;->context:Landroid/content/Context;
  
 -    invoke-static {v0}, Lcom/idm/fotaagent/restapi/restclient/polling/Polling;->getUrlString(Landroid/content/Context;)Ljava/lang/String;
@@ -336,7 +333,7 @@ index 3b6ac1b..24523ca 100644
 -
 -    iget-object v1, p0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;->context:Landroid/content/Context;
 -
--    invoke-static {v1}, Lcom/idm/fotaagent/enabler/security/SecurityPatchLevelManager;->unregisterIfPossible(Landroid/content/Context;)V
+-    invoke-static {v1}, Lcom/idm/fotaagent/enabler/security/SecurityPatchLevelManager;->unregister(Landroid/content/Context;)V
 -
 -    :cond_1
 -    :goto_0
@@ -351,17 +348,16 @@ index 3b6ac1b..24523ca 100644
 -    invoke-direct {v2, v0}, Lcom/idm/fotaagent/restapi/restclient/heartbeat/PeriodicHeartbeat$TriggeredByPolling;-><init>(Ljava/util/Map;)V
 -
 -    invoke-virtual {v1, v2}, Lcom/idm/fotaagent/restapi/restclient/heartbeat/PeriodicHeartbeatManager;->registerIfChanged(Lcom/idm/fotaagent/restapi/restclient/heartbeat/PeriodicHeartbeat;)V
--
--    iget-object p0, p0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;->pollingContext:Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;
--
--    new-instance v0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingReservationState;
--
--    invoke-direct {v0, p0}, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingReservationState;-><init>(Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;)V
--
--    invoke-virtual {p0, v0}, Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;->changeState(Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;)V
--
--    return-void
--
++    if-eqz v0, :cond_manifest_unavailable
+ 
+     iget-object p0, p0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;->pollingContext:Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;
+ 
+     new-instance v0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingReservationState;
+@@ -236,33 +148,10 @@
+     invoke-virtual {p0, v0}, Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;->changeState(Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;)V
+ 
+     return-void
+ 
 -    :cond_2
 -    const-string v0, "Receive result: fail in PollingRestClient"
 -
@@ -387,8 +383,31 @@ index 3b6ac1b..24523ca 100644
 -
 -    invoke-static {v0}, Lcom/samsung/android/fotaagent/common/log/Log;->I(Ljava/lang/Object;)V
 -
++    :cond_manifest_unavailable
++    # Keep the current alarm: PollingFinishedState does not cancel it.
      iget-object p0, p0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;->pollingContext:Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;
  
+     new-instance v0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingFinishedState;
+ 
+@@ -270,37 +159,5 @@
+ 
+     invoke-virtual {p0, v0}, Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;->changeState(Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;)V
+ 
+     return-void
+-
+-    :cond_3
+-    invoke-virtual {v0}, Lcom/idm/fotaagent/restapi/response/Result;->isAbnormalData()Z
+-
+-    move-result v0
+-
+-    if-eqz v0, :cond_4
+-
+-    const-string v0, "Received data is wrong; Do not cancel alarm to retry 1 hour later"
+-
+-    invoke-static {v0}, Lcom/samsung/android/fotaagent/common/log/Log;->I(Ljava/lang/Object;)V
+-
+-    iget-object p0, p0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;->pollingContext:Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;
+-
 -    new-instance v0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingFinishedState;
 -
 -    invoke-direct {v0, p0}, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingFinishedState;-><init>(Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;)V
@@ -397,46 +416,18 @@ index 3b6ac1b..24523ca 100644
 -
 -    return-void
 -
--    :cond_3
--    invoke-virtual {v0}, Lcom/idm/fotaagent/restapi/response/Result;->isAbnormalData()Z
--
--    move-result v0
--
--    if-eqz v0, :cond_4
-+    if-eqz v0, :cond_failed
- 
--    const-string v0, "Received data is wrong; Do not cancel alarm to retry 1 hour later"
-+    new-instance v1, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingReservationState;
- 
--    invoke-static {v0}, Lcom/samsung/android/fotaagent/common/log/Log;->I(Ljava/lang/Object;)V
-+    invoke-direct {v1, p0}, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingReservationState;-><init>(Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;)V
- 
--    iget-object p0, p0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;->pollingContext:Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;
--
--    new-instance v0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingFinishedState;
--
--    invoke-direct {v0, p0}, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingFinishedState;-><init>(Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;)V
--
--    invoke-virtual {p0, v0}, Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;->changeState(Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;)V
-+    invoke-virtual {p0, v1}, Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;->changeState(Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;)V
- 
-     return-void
- 
 -    :cond_4
 -    iget-object p0, p0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;->pollingContext:Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;
 -
 -    new-instance v0, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingReservationState;
-+    :cond_failed
-+    new-instance v1, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingFinishedState;
- 
+-
 -    invoke-direct {v0, p0}, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingReservationState;-><init>(Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;)V
-+    invoke-direct {v1, p0}, Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingFinishedState;-><init>(Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;)V
- 
+-
 -    invoke-virtual {p0, v0}, Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;->changeState(Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;)V
-+    invoke-virtual {p0, v1}, Lcom/idm/fotaagent/restapi/restclient/polling/context/PollingContext;->changeState(Lcom/idm/fotaagent/restapi/restclient/polling/state/PollingState;)V
- 
-     return-void
+-
+-    return-void
  .end method
+
 diff --git a/smali/com/idm/fotaagent/scheduler/DmSessionStarter.smali b/smali/com/idm/fotaagent/scheduler/DmSessionStarter.smali
 index 3453ddb..39f5172 100644
 --- a/smali/com/idm/fotaagent/scheduler/DmSessionStarter.smali

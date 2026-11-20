@@ -1,19 +1,11 @@
-From 22bd0a6052c189dcc1b006acf52bbc2b0810ec51 Mon Sep 17 00:00:00 2001
-From: Salvo Giangreco <giangrecosalvo9@gmail.com>
-Date: Mon, 17 Aug 2026 22:34:20 +0200
-Subject: [PATCH] Fix PM haptics for DC motors
-
----
- .../server/vibrator/HapticFeedbackVibrationProvider.smali     | 4 ++++
- 1 file changed, 4 insertions(+)
+Subject: [PATCH] Fix PM haptics for DC motors on Android 17
 
 diff --git a/smali_classes2/com/android/server/vibrator/HapticFeedbackVibrationProvider.smali b/smali_classes2/com/android/server/vibrator/HapticFeedbackVibrationProvider.smali
-index ffed3436c..c78438b84 100644
 --- a/smali_classes2/com/android/server/vibrator/HapticFeedbackVibrationProvider.smali
 +++ b/smali_classes2/com/android/server/vibrator/HapticFeedbackVibrationProvider.smali
-@@ -251,6 +251,10 @@
- 
-     if-eqz p0, :cond_1
+@@ -257,6 +257,10 @@
+     :cond_0
+     if-eqz p0, :cond_2
  
 +    const/16 v0, 0x2713
 +
@@ -21,7 +13,4 @@ index ffed3436c..c78438b84 100644
 +
      const v0, 0xc3d4
  
-     if-ne p0, v0, :cond_0
--- 
-2.55.0
-
+     if-ne p0, v0, :cond_1

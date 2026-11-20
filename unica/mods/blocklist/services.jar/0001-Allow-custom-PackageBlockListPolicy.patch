@@ -1,10 +1,10 @@
-Subject: [PATCH] Allow custom PackageBlockListPolicy on Android 16
+Subject: [PATCH] Allow custom PackageBlockListPolicy on Android 17 beta
 
 diff --git a/smali_classes2/com/android/server/pm/InstallPackageHelper.smali b/smali_classes2/com/android/server/pm/InstallPackageHelper.smali
-index 01f0f701..5e2932a4 100644
 --- a/smali_classes2/com/android/server/pm/InstallPackageHelper.smali
 +++ b/smali_classes2/com/android/server/pm/InstallPackageHelper.smali
-@@ -21806,22 +21806,18 @@
+@@ -22562,24 +22562,20 @@
+     :try_end_4
      .catchall {:try_start_4 .. :try_end_4} :catchall_0
  
      :try_start_5
@@ -30,29 +30,23 @@ index 01f0f701..5e2932a4 100644
  
      invoke-static {v2}, Lcom/samsung/android/server/pm/install/PmConfigParser;->parsePackages(Ljava/lang/String;)Ljava/util/List;
  
-@@ -21831,7 +21827,7 @@
+     move-result-object v2
+@@ -22587,9 +22583,9 @@
+     new-instance v3, Ljava/util/HashSet;
  
      invoke-direct {v3, v2}, Ljava/util/HashSet;-><init>(Ljava/util/Collection;)V
  
 -    sput-object v3, Lcom/samsung/android/server/pm/install/PackageBlockListPolicy;->sLduBlocklist:Ljava/util/HashSet;
 +    sput-object v3, Lcom/samsung/android/server/pm/install/PackageBlockListPolicy;->sBlocklist:Ljava/util/HashSet;
  
+     move-object v2, v3
+ 
      :cond_8
-     sget-boolean v2, Lcom/samsung/android/server/pm/install/PackageBlockListPolicy;->sBypassBlocklist:Z
-@@ -21843,7 +21839,7 @@
-     goto :goto_2
- 
-     :cond_9
--    sget-object v2, Lcom/samsung/android/server/pm/install/PackageBlockListPolicy;->sLduBlocklist:Ljava/util/HashSet;
-+    sget-object v2, Lcom/samsung/android/server/pm/install/PackageBlockListPolicy;->sBlocklist:Ljava/util/HashSet;
- 
-     invoke-virtual {v2, v1}, Ljava/util/HashSet;->contains(Ljava/lang/Object;)Z
- 
 diff --git a/smali_classes2/com/samsung/android/server/pm/install/PackageBlockListPolicy.smali b/smali_classes2/com/samsung/android/server/pm/install/PackageBlockListPolicy.smali
-index 386c4df0..30d3ee6f 100644
 --- a/smali_classes2/com/samsung/android/server/pm/install/PackageBlockListPolicy.smali
 +++ b/smali_classes2/com/samsung/android/server/pm/install/PackageBlockListPolicy.smali
-@@ -4,6 +4,8 @@
+@@ -3,8 +3,10 @@
+ .source "qb/117478569 8d074cdd4e2f7d3a8a13547133c23fe0ff758dcd80218b04df02ed25ecc56535"
  
  
  # static fields
@@ -61,3 +55,4 @@ index 386c4df0..30d3ee6f 100644
  .field public static sBypassBlocklist:Z = false
  
  .field public static final sIsRduDevice:Ljava/util/concurrent/atomic/AtomicBoolean;
+ 

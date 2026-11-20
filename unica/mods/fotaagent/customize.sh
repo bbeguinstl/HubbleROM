@@ -98,7 +98,7 @@ LOG_STEP_OUT
 
 # Where UpdateChecker looks for ROM updates. Override with
 # ROM_OTA_MANIFEST_URL; an empty value disables update checks.
-ROM_OTA_MANIFEST_URL="${ROM_OTA_MANIFEST_URL-https://github.com/At30c/ShitStockModOrSomething/releases/latest/download/ota-$TARGET_CODENAME.json}"
+ROM_OTA_MANIFEST_URL="${ROM_OTA_MANIFEST_URL-https://github.com/bbeguinstl/HubbleROM/releases/latest/download/ota-$TARGET_CODENAME.json}"
 LOG "- Update manifest: ${ROM_OTA_MANIFEST_URL:-(disabled)}"
 SET_PROP "system" "ro.unica.ota.manifest" "$ROM_OTA_MANIFEST_URL"
 if ! grep -q "^ro.unica.ota.manifest " "$WORK_DIR/system/system/etc/selinux/plat_property_contexts"; then

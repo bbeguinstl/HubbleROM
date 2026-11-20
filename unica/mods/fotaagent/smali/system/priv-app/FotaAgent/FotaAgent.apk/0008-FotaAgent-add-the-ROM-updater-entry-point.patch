@@ -1,24 +1,13 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: At30c <173511395+At30c@users.noreply.github.com>
-Date: Sat, 7 Nov 2026 18:27:24 -0300
-Subject: [PATCH 8/8] FotaAgent: add the ROM updater entry point
-
----
- AndroidManifest.xml                           |   5 +
- .../io/unica/fota/UpdateReceiver$Job.smali    | 126 ++++++++++++++++++
- .../io/unica/fota/UpdateReceiver.smali        |  51 +++++++
- 3 files changed, 182 insertions(+)
- create mode 100644 smali_classes2/io/unica/fota/UpdateReceiver$Job.smali
- create mode 100644 smali_classes2/io/unica/fota/UpdateReceiver.smali
+Subject: [PATCH 8/8] Add FotaAgent updater receiver for Android 17 beta
 
 diff --git a/AndroidManifest.xml b/AndroidManifest.xml
-index 073c7ee..de8b19b 100644
 --- a/AndroidManifest.xml
 +++ b/AndroidManifest.xml
-@@ -261,5 +261,10 @@
-         </receiver>
-         <meta-data android:name="SPDE.build.signature" android:value="94efd5cb1d5c8e9674d8b66d5a2688639a737c4b/185534510/fotaagent-release/FotaAgent-400000-4.6.20"/>
-         <meta-data android:name="SPDE.env.version" android:value="8.13.2/G37.1.14/1.2.16"/>
+@@ -253,6 +253,11 @@
+         <activity android:exported="false" android:name="com.google.android.gms.common.api.GoogleApiActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+         <receiver android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"/>
+         <meta-data android:name="SPDE.build.signature" android:value="6ea9dede6ba444ade9cc15c70c0f220ce82a9f2b/190485652/fotaagent-release/FotaAgent-400000-4.7.09"/>
+         <meta-data android:name="SPDE.env.version" android:value="8.13.2/G37.2.9/1.2.19"/>
 +        <receiver android:exported="true" android:name="io.unica.fota.UpdateReceiver" android:permission="android.permission.DUMP">
 +            <intent-filter>
 +                <action android:name="io.unica.fota.START_UPDATE"/>
@@ -28,7 +17,6 @@ index 073c7ee..de8b19b 100644
  </manifest>
 diff --git a/smali_classes2/io/unica/fota/UpdateReceiver$Job.smali b/smali_classes2/io/unica/fota/UpdateReceiver$Job.smali
 new file mode 100644
-index 0000000..0200dda
 --- /dev/null
 +++ b/smali_classes2/io/unica/fota/UpdateReceiver$Job.smali
 @@ -0,0 +1,126 @@
@@ -160,7 +148,6 @@ index 0000000..0200dda
 +.end method
 diff --git a/smali_classes2/io/unica/fota/UpdateReceiver.smali b/smali_classes2/io/unica/fota/UpdateReceiver.smali
 new file mode 100644
-index 0000000..d8b2520
 --- /dev/null
 +++ b/smali_classes2/io/unica/fota/UpdateReceiver.smali
 @@ -0,0 +1,51 @@

@@ -44,14 +44,14 @@ Subject: [PATCH] Introduce KeyboxImitationHooks
  create mode 100644 smali_classes7/io/mesalabs/unica/KeyboxUtils$$ExternalSyntheticLambda0.smali
  create mode 100644 smali_classes7/io/mesalabs/unica/KeyboxUtils.smali
 
-diff --git a/smali_classes3/android/security/KeyStore2.smali b/smali_classes3/android/security/KeyStore2.smali
+diff --git a/smali_classes4/android/security/KeyStore2.smali b/smali_classes4/android/security/KeyStore2.smali
 index e913b7a..9415747 100644
---- a/smali_classes3/android/security/KeyStore2.smali
-+++ b/smali_classes3/android/security/KeyStore2.smali
+--- a/smali_classes4/android/security/KeyStore2.smali
++++ b/smali_classes4/android/security/KeyStore2.smali
 @@ -558,7 +558,7 @@
  .end method
  
- .method static synthetic blacklist lambda$getSecurityLevel$6(ILandroid/system/keystore2/IKeystoreService;)Landroid/security/KeyStoreSecurityLevel;
+ .method static synthetic blacklist lambda$getSecurityLevel$0(ILandroid/system/keystore2/IKeystoreService;)Landroid/security/KeyStoreSecurityLevel;
 -    .locals 1
 +    .locals 2
      .annotation system Ldalvik/annotation/Throws;
@@ -347,10 +347,10 @@ index bf76de8..a211603 100644
      invoke-virtual {p0}, Landroid/system/keystore2/IKeystoreService$Stub$Proxy;->asBinder()Landroid/os/IBinder;
  
      move-result-object v0
-diff --git a/smali_classes5/com/android/internal/org/bouncycastle/jcajce/provider/asymmetric/EC$Mappings.smali b/smali_classes5/com/android/internal/org/bouncycastle/jcajce/provider/asymmetric/EC$Mappings.smali
+diff --git a/smali_classes6/com/android/internal/org/bouncycastle/jcajce/provider/asymmetric/EC$Mappings.smali b/smali_classes6/com/android/internal/org/bouncycastle/jcajce/provider/asymmetric/EC$Mappings.smali
 index 7da5e84..581668b 100644
---- a/smali_classes5/com/android/internal/org/bouncycastle/jcajce/provider/asymmetric/EC$Mappings.smali
-+++ b/smali_classes5/com/android/internal/org/bouncycastle/jcajce/provider/asymmetric/EC$Mappings.smali
+--- a/smali_classes6/com/android/internal/org/bouncycastle/jcajce/provider/asymmetric/EC$Mappings.smali
++++ b/smali_classes6/com/android/internal/org/bouncycastle/jcajce/provider/asymmetric/EC$Mappings.smali
 @@ -26,7 +26,19 @@
  
  # virtual methods

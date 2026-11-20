@@ -1,17 +1,10 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: At30c <173511395+At30c@users.noreply.github.com>
-Date: Sat, 7 Nov 2026 18:26:31 -0300
-Subject: [PATCH 3/8] FotaAgent: block update result reports
-
----
- smali/com/idm/agent/restclient/RestRequestExecutor.smali | 6 ++++++
- 1 file changed, 6 insertions(+)
+Subject: [PATCH 3/8] Disable update-result reporting on Android 17 beta
 
 diff --git a/smali/com/idm/agent/restclient/RestRequestExecutor.smali b/smali/com/idm/agent/restclient/RestRequestExecutor.smali
-index 4417efa..4353b8d 100644
 --- a/smali/com/idm/agent/restclient/RestRequestExecutor.smali
 +++ b/smali/com/idm/agent/restclient/RestRequestExecutor.smali
-@@ -796,6 +796,12 @@
+@@ -795,8 +795,13 @@
+ # virtual methods
  .method public start()V
      .locals 3
  
@@ -20,7 +13,7 @@ index 4417efa..4353b8d 100644
 +
 +    return-void
 +
-+
      new-instance v0, Ljava/lang/Thread;
  
-     new-instance v1, La6/b;
+     new-instance v1, La5/a;
+ 
