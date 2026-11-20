@@ -3,11 +3,13 @@
 
 # UN1CA configuration file for Exynos devices (essi)
 
-# Galaxy S26+ (Exynos 2600) (One UI 9)
+# Galaxy S26+ (Exynos 2600) (One UI 9.5 Beta)
 # Keep the tested S947B release pinned so framework/display behaviour is
 # reproducible instead of silently moving with monthly FUS updates.
 SOURCE_FIRMWARE="SM-S947B/EUX/350330051234562"
-SOURCE_FIRMWARE_VERSION=""
+# S947BXXU6ZZKN (One UI 9.5 Beta) is an incremental OTA based on this complete
+# FUS build; FUS does not publish a matching full Odin package for the beta.
+SOURCE_FIRMWARE_VERSION="S947BXXS6BZK1/S947BOXM6BZK1/S947BXXS6BZK1"
 SOURCE_EXTRA_FIRMWARES=()
 SOURCE_PLATFORM_SDK_VERSION=37
 # S947B uses Android 17 (platform SDK 37), ships with vendor API 36, and
