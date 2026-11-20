@@ -1,30 +1,28 @@
 DECODE_APK "system" "system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk"
 
-LOG "- Enabling navigation bar type settings step"
 SETUPWIZARD_APK="$APKTOOL_DIR/system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk"
 NAV_STEP_FILE="$(find "$SETUPWIZARD_APK" -type f -name '*.smali' \
     -exec grep -lF '"navigationbar_setting"' {} + \
     | grep -v '/com/sec/android/app/SecSetupWizard/SecSetupWizardActivity.smali$' | sed -n '1p')"
-[ "$NAV_STEP_FILE" ] || ABORT "Navigation bar setup step implementation not found"
-NAV_STEP_METHOD="$(awk '/^\.method/{method=$0} /"navigationbar_setting"/{print method; exit}' "$NAV_STEP_FILE" \
-    | sed -E 's/^\.method ([^ ]+ )*//')"
-NAV_STEP_FILE="${NAV_STEP_FILE//$SETUPWIZARD_APK\//}"
-SMALI_PATCH "system" "system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk" \
-    "$NAV_STEP_FILE" "replace" \
-    "$NAV_STEP_METHOD" \
-    "navigationbar_setting" \
-    "this_string_does_not_exist" \
-    > /dev/null
-SETUPWIZARD_ACTIVITY="smali/com/sec/android/app/SecSetupWizard/SecSetupWizardActivity.smali"
-SETUPWIZARD_ACTIVITY_METHOD="$(awk '/^\.method/{method=$0} /"navigationbar_setting"/{print method; exit}' \
-    "$SETUPWIZARD_APK/$SETUPWIZARD_ACTIVITY" | sed -E 's/^\.method ([^ ]+ )*//')"
-SMALI_PATCH "system" "system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk" \
-    "$SETUPWIZARD_ACTIVITY" "replace" \
-    "$SETUPWIZARD_ACTIVITY_METHOD" \
-    "navigationbar_setting" \
-    "this_string_does_not_exist" \
-    > /dev/null
-unset NAV_STEP_FILE NAV_STEP_METHOD SETUPWIZARD_ACTIVITY SETUPWIZARD_ACTIVITY_METHOD
+if [ "$NAV_STEP_FILE" ]; then
+    LOG "- Enabling navigation bar type settings step"
+    NAV_STEP_METHOD="$(awk '/^\.method/{method=$0} /"navigationbar_setting"/{print method; exit}' "$NAV_STEP_FILE" \
+        | sed -E 's/^\.method ([^ ]+ )*//')"
+    NAV_STEP_FILE="${NAV_STEP_FILE//$SETUPWIZARD_APK\//}"
+    SMALI_PATCH "system" "system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk" \
+        "$NAV_STEP_FILE" "replace" "$NAV_STEP_METHOD" \
+        "navigationbar_setting" "this_string_does_not_exist" > /dev/null
+    SETUPWIZARD_ACTIVITY="smali/com/sec/android/app/SecSetupWizard/SecSetupWizardActivity.smali"
+    SETUPWIZARD_ACTIVITY_METHOD="$(awk '/^\.method/{method=$0} /"navigationbar_setting"/{print method; exit}' \
+        "$SETUPWIZARD_APK/$SETUPWIZARD_ACTIVITY" | sed -E 's/^\.method ([^ ]+ )*//')"
+    SMALI_PATCH "system" "system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk" \
+        "$SETUPWIZARD_ACTIVITY" "replace" "$SETUPWIZARD_ACTIVITY_METHOD" \
+        "navigationbar_setting" "this_string_does_not_exist" > /dev/null
+    unset NAV_STEP_METHOD SETUPWIZARD_ACTIVITY SETUPWIZARD_ACTIVITY_METHOD
+else
+    LOG "- This beta has no navigation bar settings step; skipping"
+fi
+unset NAV_STEP_FILE
 
 # Keep the OMCAgent "Recommended apps" step, fed only by the system catalogue.
 # The OMCAgent5 smali patch in this module makes its catalogue loader read
@@ -48,8 +46,11 @@ fi
 while IFS= read -r f; do
     f="${f//$MODPATH\/SecSetupWizard_Global.apk\//}"
 
-    if [ ! -f "$APKTOOL_DIR/system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk/$f" ] || \
-            [[ "$f" != *".xml" ]]; then
+    TARGET_XML="$APKTOOL_DIR/system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk/$f"
+    if [[ "$f" == *"res/values"* ]] && \
+            grep -q 'name="disclaimer_unica_description"' "$TARGET_XML" 2>/dev/null; then
+        LOG "- Disclaimer text in $f is already present; skipping"
+    elif [ ! -f "$TARGET_XML" ] || [[ "$f" != *".xml" ]]; then
         LOG "- Adding \"$f\" to /system/system/priv-app/SecSetupWizard_Global.apk"
         EVAL "mkdir -p \"$(dirname "$APKTOOL_DIR/system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk/$f")\""
         EVAL "cp -a \"$MODPATH/SecSetupWizard_Global.apk/${f//\$/\\$}\" \"$APKTOOL_DIR/system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk/${f//\$/\\$}\""
@@ -67,6 +68,39 @@ while IFS= read -r f; do
         EVAL "sed -i \"$PATCH_INST $CONTENT\" \"$APKTOOL_DIR/system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk/$f\""
     fi
 done < <(find "$MODPATH/SecSetupWizard_Global.apk" -type f)
+
+# Localize the HubbleROM welcome title for every language available in this
+# Setup Wizard build, keeping the ROM name unchanged in all translations.
+python3 - "$SETUPWIZARD_APK/res" "$MODPATH/welcome_translations.json" <<'PY'
+import html
+import json
+import re
+import sys
+from pathlib import Path
+
+resources = Path(sys.argv[1])
+translations = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+title_pattern = re.compile(
+    r'(<string\b[^>]*\bname="intro_upper_title"[^>]*>).*?(</string>)',
+    re.DOTALL,
+)
+updated = 0
+for strings in resources.glob("values*/strings.xml"):
+    title = translations.get(strings.parent.name)
+    if not title:
+        continue
+    content = strings.read_text(encoding="utf-8")
+    content, count = title_pattern.subn(
+        lambda match: match.group(1)
+        + html.escape(title, quote=False).replace("'", r"\'").replace('"', r'\"')
+        + match.group(2),
+        content,
+    )
+    if count:
+        strings.write_text(content, encoding="utf-8")
+        updated += 1
+print(f"Set the HubbleROM welcome title in {updated} Setup Wizard locales")
+PY
 
 if [ "$SOURCE_PLATFORM_SDK_VERSION" -ge "36" ]; then
     LOG "- Porting custom disclaimer page to Android 16"
@@ -100,13 +134,16 @@ if [ "$SOURCE_PLATFORM_SDK_VERSION" -ge "36" ]; then
 
     DISCLAIMER_STEP_FILE="$(find "$SETUPWIZARD_APK" -type f -name '*.smali' \
         -exec grep -lF '"disclaimer"' {} + | sed -n '1p')"
-    [ "$DISCLAIMER_STEP_FILE" ] || ABORT "Disclaimer setup step implementation not found"
-    DISCLAIMER_STEP_METHOD="$(awk '/^\.method/{method=$0} /"disclaimer"/{print method; exit}' \
-        "$DISCLAIMER_STEP_FILE" | sed -E 's/^\.method ([^ ]+ )*//')"
-    DISCLAIMER_STEP_FILE="${DISCLAIMER_STEP_FILE//$SETUPWIZARD_APK\//}"
-    SMALI_PATCH "system" "system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk" \
-        "$DISCLAIMER_STEP_FILE" "replace" "$DISCLAIMER_STEP_METHOD" \
-        "disclaimer" "this_string_does_not_exist" > /dev/null
+    if [ "$DISCLAIMER_STEP_FILE" ]; then
+        DISCLAIMER_STEP_METHOD="$(awk '/^\.method/{method=$0} /"disclaimer"/{print method; exit}' \
+            "$DISCLAIMER_STEP_FILE" | sed -E 's/^\.method ([^ ]+ )*//')"
+        DISCLAIMER_STEP_FILE="${DISCLAIMER_STEP_FILE//$SETUPWIZARD_APK\//}"
+        SMALI_PATCH "system" "system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk" \
+            "$DISCLAIMER_STEP_FILE" "replace" "$DISCLAIMER_STEP_METHOD" \
+            "disclaimer" "this_string_does_not_exist" > /dev/null
+    else
+        LOG "- Disclaimer wizard step is already disabled; skipping"
+    fi
 
     DISCLAIMER_ACTIVITY="$SETUPWIZARD_APK/smali/com/sec/android/app/SecSetupWizard/UI/DisclaimerActivity.smali"
     DISCLAIMER_BASE_CLASS="$(sed -n 's/^\.super //p' "$DISCLAIMER_ACTIVITY" | sed -n '1p')"
@@ -156,7 +193,12 @@ if [ "$SOURCE_PLATFORM_SDK_VERSION" -ge "36" ]; then
         replace_tail { next }
         { print }
     ' "$DISCLAIMER_ACTIVITY" > "$DISCLAIMER_ACTIVITY.tmp"
-    EVAL "mv \"$DISCLAIMER_ACTIVITY.tmp\" \"$DISCLAIMER_ACTIVITY\""
+    if grep -qF "$DISCLAIMER_STRING_ID" "$DISCLAIMER_ACTIVITY"; then
+        LOG "- Disclaimer activity is already patched; skipping"
+        EVAL "rm -f \"$DISCLAIMER_ACTIVITY.tmp\""
+    else
+        EVAL "mv \"$DISCLAIMER_ACTIVITY.tmp\" \"$DISCLAIMER_ACTIVITY\""
+    fi
 else
     APPLY_PATCH "system" "system/priv-app/SecSetupWizard_Global/SecSetupWizard_Global.apk" \
         "$MODPATH/legacy/SecSetupWizard_Global.apk/0001-Add-custom-disclaimer-page.patch"
