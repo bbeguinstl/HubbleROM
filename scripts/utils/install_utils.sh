@@ -180,7 +180,7 @@ PRINT_HEADER()
     echo    'ui_print(" ");'
     PRINT_SEPARATOR
     echo -n 'ui_print("'
-    echo -n "UN1CA $ROM_VERSION for $TARGET_NAME"
+    echo -n "HubbleROM $ROM_VERSION for $TARGET_NAME"
     echo    '");'
     echo    'ui_print("Coded by salvo_giangri @XDAforums");'
     PRINT_SEPARATOR

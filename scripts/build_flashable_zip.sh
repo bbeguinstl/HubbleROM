@@ -56,12 +56,7 @@ PREPARE_SCRIPT()
 
         TARGET_BUILD_INFO="$(READ_TARGET_FILES_BUILD_INFO "$TARGET_ZIP")" || exit 1
 
-        OUTPUT_FILE="$OUT_DIR/UN1CA_"
-        OUTPUT_FILE+="$(grep "^version" <<< "$TARGET_BUILD_INFO" | cut -d "=" -f 2 -s)"
-        OUTPUT_FILE+="_"
-        OUTPUT_FILE+="$(date -d "@$(grep "^timestamp" <<< "$TARGET_BUILD_INFO" | cut -d "=" -f 2 -s)" "+%Y%m%d")"
-        OUTPUT_FILE+="_"
-        OUTPUT_FILE+="$(grep "^device" <<< "$TARGET_BUILD_INFO" | cut -d "=" -f 2 -s)"
+        OUTPUT_FILE="$OUT_DIR/HubbleROM-v${ROM_VERSION}_${ROM_BASE_CODENAME,,}-${TARGET_CODENAME%lte}"
         if $INCREMENTAL; then
             local SOURCE_BUILD_INFO
 
@@ -70,10 +65,7 @@ PREPARE_SCRIPT()
             OUTPUT_FILE+="-INCREMENTAL_"
             OUTPUT_FILE+="$(grep "^timestamp" <<< "$SOURCE_BUILD_INFO" | cut -d "=" -f 2 -s)"
         fi
-        if ! $DEBUG || $ROM_IS_OFFICIAL; then
-            OUTPUT_FILE+="-sign"
-        fi
-        OUTPUT_FILE+=".zip"
+        OUTPUT_FILE+="_OFFICIAL.zip"
     fi
 }
 

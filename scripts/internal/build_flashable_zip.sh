@@ -20,17 +20,12 @@ TMP_DIR="$OUT_DIR/zip"
 # can override this with UNICA_BROTLI_QUALITY=6 (valid range: 0-11).
 BROTLI_QUALITY="${UNICA_BROTLI_QUALITY:-1}"
 
-ROM_STATUS="UNOFFICIAL"
-$ROM_IS_OFFICIAL && ROM_STATUS="OFFICIAL"
-
-ZIP_FILE_SUFFIX="-sign.zip"
-$DEBUG && ! $ROM_IS_OFFICIAL && ZIP_FILE_SUFFIX=".zip"
-
-ZIP_FILE_NAME="UN1CA_${ROM_STATUS}_${ROM_VERSION}_$(date +%Y%m%d)_${TARGET_CODENAME}${ZIP_FILE_SUFFIX}"
-while [ -f "$OUT_DIR/$ZIP_FILE_NAME" ]; do
-    INCREMENTAL=$((INCREMENTAL + 1))
-    ZIP_FILE_NAME="UN1CA_${ROM_VERSION}_$(date +%Y%m%d)-${INCREMENTAL}_${TARGET_CODENAME}${ZIP_FILE_SUFFIX}"
-done
+ZIP_TARGET_CODENAME="${TARGET_CODENAME%lte}"
+ZIP_FILE_NAME="HubbleROM-v${ROM_VERSION}_${ROM_BASE_CODENAME,,}-${ZIP_TARGET_CODENAME}_OFFICIAL.zip"
+if [ -f "$OUT_DIR/$ZIP_FILE_NAME" ]; then
+    LOGE "Output already exists: ${ZIP_FILE_NAME}"
+    exit 1
+fi
 
 PRIVATE_KEY_PATH="$SRC_DIR/security/"
 PUBLIC_KEY_PATH="$SRC_DIR/security/"
@@ -503,7 +498,7 @@ PRINT_HEADER()
     echo    'ui_print(" ");'
     echo    'ui_print("****************************************************");'
     echo -n 'ui_print("'
-    echo -n "Welcome to UN1CA $ROM_CODENAME $ROM_VERSION for $TARGET_NAME!"
+    echo -n "Welcome to HubbleROM $ROM_CODENAME $ROM_VERSION for $TARGET_NAME!"
     echo    '");'
     if [ "$(GET_PROP "system" "ro.unica.commit")" ]; then
         echo -n 'ui_print("'
