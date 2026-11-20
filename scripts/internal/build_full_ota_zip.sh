@@ -320,15 +320,28 @@ fi
 
 LOG "- Creating zip"
 EVAL "rm -f \"$TMP_DIR/rom.zip\"" || exit 1
+# Debian's 7-Zip package loads its format module from the current directory.
+# The build runs 7z from TMP_DIR, so expose the package module there when the
+# selected 7z binary ships one. Keep it out of the ROM archive below.
+SEVENZIP_MODULE_LINKED=false
+SEVENZIP_BIN="$(readlink -f "$(command -v 7z)")"
+SEVENZIP_MODULE="$(dirname "$SEVENZIP_BIN")/7z.so"
+if [ -f "$SEVENZIP_MODULE" ] && [ ! -e "$TMP_DIR/7z.so" ]; then
+    ln -s "$SEVENZIP_MODULE" "$TMP_DIR/7z.so" || exit 1
+    SEVENZIP_MODULE_LINKED=true
+fi
 # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/common.py#3601
 # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/common.py#3609
 # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/ota_utils.py#184
 # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/ota_utils.py#186
 EVAL "cd \"$TMP_DIR\" && 7z a -tzip -mx=0 -mmt=$(nproc) $TMP_DIR/rom.zip -r *.patch.dat -ir!META-INF/com/android/* -i!*.new.dat.br" || exit 1
 if $DEBUG; then
-    EVAL "cd \"$TMP_DIR\" && 7z a -tzip -mx=0 -mmt=$(nproc) $TMP_DIR/rom.zip -r * -xr!META-INF/com/android/* -x!*.new.dat.br -x!*.patch.dat -x!rom.zip" || exit 1
+    EVAL "cd \"$TMP_DIR\" && 7z a -tzip -mx=0 -mmt=$(nproc) $TMP_DIR/rom.zip -r * -xr!META-INF/com/android/* -x!*.new.dat.br -x!*.patch.dat -x!rom.zip -x!7z.so" || exit 1
 else
-    EVAL "cd \"$TMP_DIR\" && 7z a -tzip -mx=3 -mmt=$(nproc) $TMP_DIR/rom.zip -r * -xr!META-INF/com/android/* -x!*.new.dat.br -x!*.patch.dat -x!rom.zip" || exit 1
+    EVAL "cd \"$TMP_DIR\" && 7z a -tzip -mx=3 -mmt=$(nproc) $TMP_DIR/rom.zip -r * -xr!META-INF/com/android/* -x!*.new.dat.br -x!*.patch.dat -x!rom.zip -x!7z.so" || exit 1
+fi
+if $SEVENZIP_MODULE_LINKED; then
+    rm -f "$TMP_DIR/7z.so"
 fi
 
 if ! $DEBUG || $ROM_IS_OFFICIAL; then
