@@ -19,6 +19,80 @@ OUTPUT_FILE=""
 FILE_CONTEXT_FILE=""
 FS_CONFIG_FILE=""
 
+NORMALIZE_FILE_CONTEXTS()
+{
+    python3 - "$1" "$WORK_DIR" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+file_contexts = Path(sys.argv[1])
+work_dir = Path(sys.argv[2])
+policy_contexts = [
+    work_dir / "system/system/etc/selinux/plat_file_contexts",
+    work_dir / "system/system/system_ext/etc/selinux/system_ext_file_contexts",
+    work_dir / "product/etc/selinux/product_file_contexts",
+    work_dir / "vendor/etc/selinux/vendor_file_contexts",
+    work_dir / "odm/etc/selinux/odm_file_contexts",
+]
+rules = []
+for policy_file in policy_contexts:
+    if not policy_file.is_file():
+        continue
+    for line in policy_file.read_text(encoding="utf-8", errors="replace").splitlines():
+        fields = line.split(None, 1)
+        if len(fields) != 2 or not fields[1].startswith("u:object_r:"):
+            continue
+        try:
+            rules.append((re.compile(fields[0]), fields[1]))
+        except re.error:
+            continue
+
+lines = file_contexts.read_text(encoding="utf-8", errors="replace").splitlines()
+normalized = 0
+for index, line in enumerate(lines):
+    fields = line.split()
+    if len(fields) != 3 or fields[1] != r"security\.selinux" or not re.fullmatch(r"\(\d+\)", fields[2]):
+        continue
+
+    # Some extracted Samsung vendor context tables preserve an xattr name and
+    # value length instead of the SELinux label. Resolve each exact path using
+    # the merged platform/vendor policy before passing it to mkfs.erofs.
+    path = re.sub(r"\\(.)", r"\1", fields[0])
+    matches = [context for pattern, context in rules if pattern.fullmatch(path)]
+    if not matches:
+        raise SystemExit(f"No SELinux policy context matches {path} in {file_contexts}")
+    lines[index] = f"{fields[0]} {matches[-1]}"
+    normalized += 1
+
+if normalized:
+    file_contexts.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Normalized {normalized} extracted SELinux context entries")
+PY
+}
+
+ADD_ROOT_FS_CONFIG_ENTRY()
+{
+    if grep -q '^ ' "$FS_CONFIG_FILE"; then
+        return 0
+    fi
+
+    local ROOT_CONFIG
+    local TEMP_CONFIG
+    ROOT_CONFIG="$(awk -v partition="$PARTITION" '$1 == partition { $1 = ""; sub(/^ /, ""); print; exit }' "$FS_CONFIG_FILE")"
+    [ "$ROOT_CONFIG" ] || {
+        LOGE "Unable to find the $PARTITION root entry in $FS_CONFIG_FILE"
+        return 1
+    }
+
+    TEMP_CONFIG="$(mktemp "$TMP_DIR/fs_config.XXXXXX")"
+    {
+        printf ' %s\n' "$ROOT_CONFIG"
+        cat "$FS_CONFIG_FILE"
+    } > "$TEMP_CONFIG" || return 1
+    mv -f "$TEMP_CONFIG" "$FS_CONFIG_FILE"
+}
+
 # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/tools/releasetools/build_image.py#266
 BUILD_IMAGE_MKFS()
 {
@@ -77,6 +151,8 @@ BUILD_IMAGE_MKFS()
             fi
             ;;
         "erofs")
+            NORMALIZE_FILE_CONTEXTS "$FILE_CONTEXT_FILE" || exit 1
+            ADD_ROOT_FS_CONFIG_ENTRY || exit 1
             BUILD_CMD+="mkfs.erofs "
             # https://android.googlesource.com/platform/build/+/refs/tags/android-15.0.0_r1/core/Makefile#2084
             if $DEBUG; then
