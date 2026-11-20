@@ -172,22 +172,26 @@ if [ "$TARGET_PLATFORM_SDK_VERSION" -lt "34" ]; then
     if ! $TARGET_CAMERA_SUPPORT_MASS_APP_FLAVOR; then
         DECODE_APK "system" "system/priv-app/SamsungCamera/SamsungCamera.apk"
         CAMERA_APK_DIR="$APKTOOL_DIR/system/priv-app/SamsungCamera/SamsungCamera.apk"
-        CAMERA_CALLBACK_SMALI="$CAMERA_APK_DIR/smali_classes2/com/samsung/android/camera/core2/maker/MakerCallbackManager.smali"
         CAMERA_FORWARDER_SMALI="$CAMERA_APK_DIR/smali_classes2/com/samsung/android/camera/core2/callback/forwarder/TextDetectionInfoCallbackForwarder.smali"
-        # The Android 17 callback adaptation is already present in the modern
-        # camera core used by M21s/y2s.  The reverse check in APPLY_PATCH is
-        # not sufficient here because the donor patch targets different line
-        # contexts, so recognize the complete semantic markers explicitly.
-        if grep -Fq 'sceneDetectionEvent:I' "$CAMERA_FORWARDER_SMALI" && \
-                grep -Fq 'SemCaptureResult;->I0' "$CAMERA_CALLBACK_SMALI" && \
-                grep -Fq 'lambda$initializeSendCallbackMap$156' "$CAMERA_CALLBACK_SMALI"; then
+        CAMERA_SCENE_PATCHED=true
+        grep -Fq 'sceneDetectionEvent:I' "$CAMERA_FORWARDER_SMALI" || CAMERA_SCENE_PATCHED=false
+        grep -Fq 'SemCaptureResult;->O0' "$CAMERA_FORWARDER_SMALI" || CAMERA_SCENE_PATCHED=false
+        for CAMERA_SCENE_MAKER in AutoBeautyPhotoMaker BeautyPhotoMaker DualBokehPhotoMaker SuperNightPhotoMaker; do
+            grep -Fq 'sceneDetectionEvent:I' \
+                "$CAMERA_APK_DIR/smali_classes2/com/samsung/android/camera/core2/maker/$CAMERA_SCENE_MAKER.smali" || \
+                CAMERA_SCENE_PATCHED=false
+        done
+        # The beta changed both the metadata key and callback class layout.
+        # Recognize all five semantic markers because reverse checks cannot
+        # match patches whose donor hunk contexts have moved.
+        if $CAMERA_SCENE_PATCHED; then
             LOG "- SamsungCamera already has the legacy scene-detection callback path"
         else
             PATCHED=true
             APPLY_PATCH "system" "system/priv-app/SamsungCamera/SamsungCamera.apk" \
                 "$MODPATH/camera/SamsungCamera.apk/0002-Backport-legacy-Scene-detection-code.patch"
         fi
-        unset CAMERA_APK_DIR CAMERA_CALLBACK_SMALI CAMERA_FORWARDER_SMALI
+        unset CAMERA_APK_DIR CAMERA_FORWARDER_SMALI CAMERA_SCENE_PATCHED CAMERA_SCENE_MAKER
     fi
     unset CAMERA_METADATA_SMALI
 fi
@@ -554,10 +558,18 @@ fi
 # Ensure PASS support (pre-API 35)
 if [ "$TARGET_PLATFORM_SDK_VERSION" -lt "35" ]; then
     if ! grep -q "sec_pass_data_file" "$WORK_DIR/vendor/etc/selinux/vendor_file_contexts"; then
-        PATCHED=true
-        SMALI_PATCH "system" "system/framework/services.jar" \
-            "smali/com/android/server/StorageManagerService.smali" "return" \
-            'isPassSupport()Z' 'false'
+        PASS_STORAGE_MANAGER="$APKTOOL_DIR/system/framework/services.jar/smali/com/android/server/StorageManagerService.smali"
+        if grep -Fq '.method' "$PASS_STORAGE_MANAGER" && grep -Fq 'isPassSupport()Z' "$PASS_STORAGE_MANAGER"; then
+            PATCHED=true
+            SMALI_PATCH "system" "system/framework/services.jar" \
+                "smali/com/android/server/StorageManagerService.smali" "return" \
+                'isPassSupport()Z' 'false'
+        else
+            # Android 17's StorageManagerService no longer has the legacy
+            # PASS feature gate. There is no method to force off on this beta.
+            LOG "- StorageManagerService has no legacy isPassSupport() gate"
+        fi
+        unset PASS_STORAGE_MANAGER
     fi
 fi
 

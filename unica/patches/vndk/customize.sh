@@ -213,9 +213,12 @@ VALIDATE_LEGACY_VNDK() {
     fi
 
     VENDOR_SDK="$(GET_PROP vendor ro.vendor.build.version.sdk)"
-    if [ -n "$VENDOR_SDK" ] && [ "$VENDOR_SDK" -ne "$TARGET_PLATFORM_SDK_VERSION" ]; then
-        ABORT "Vendor SDK $VENDOR_SDK does not match target platform SDK $TARGET_PLATFORM_SDK_VERSION"
-        return 1
+    if [ -n "$VENDOR_SDK" ]; then
+        if ! [[ "$VENDOR_SDK" =~ ^[0-9]+$ ]] || \
+                [ "$VENDOR_SDK" -ne "$TARGET_BOARD_API_LEVEL" ]; then
+            ABORT "Vendor SDK $VENDOR_SDK does not match target vendor API $TARGET_BOARD_API_LEVEL"
+            return 1
+        fi
     fi
 
     LOG "  - Legacy VNDK $TARGET_VNDK_VERSION compatibility validated ($APEX_SIZE bytes)"

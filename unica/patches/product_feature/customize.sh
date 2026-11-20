@@ -95,7 +95,7 @@ RESOLVE_RECORDALIVE_LITERAL()
         fi
     done
 
-    ABORT "Unable to resolve the source record-alive literal in SemMultiMicManager"
+    LOGW "SemMultiMicManager has no legacy record-alive version literal"
     return 1
 }
 
@@ -113,70 +113,80 @@ PRESERVE_NATIVE_FINGERPRINT_UI="${SOURCE_USE_NATIVE_FINGERPRINT_UI:-false}"
 USE_MODERN_MDNIE_SERVICE="${SOURCE_USE_MODERN_MDNIE_SERVICE:-false}"
 # ]
 
+PATCH_SHIPPING_API_LITERAL_IF_PRESENT()
+{
+    local FILE="$1"
+    local SMALI="$2"
+    local METHOD="$3"
+    local FROM="$4"
+    local TO="$5"
+    local LABEL="$6"
+    local ROOT="$APKTOOL_DIR/system/${FILE//system/}"
+    local SMALI_FILE="$ROOT/$SMALI"
+    local MATCHES
+    local METHOD_CONTENT
+
+    DECODE_APK "system" "$FILE" || return 1
+    if [ ! -f "$SMALI_FILE" ]; then
+        MATCHES="$(find "$ROOT" -type f -name "${SMALI##*/}" | sort)"
+        if [ "$(printf '%s\n' "$MATCHES" | sed '/^$/d' | wc -l)" -eq 1 ]; then
+            SMALI_FILE="$MATCHES"
+            SMALI="${SMALI_FILE#"$ROOT/"}"
+        fi
+    fi
+    if [ ! -f "$SMALI_FILE" ]; then
+        LOG "- $LABEL has no source class; skipping legacy shipping API patch"
+        return 0
+    fi
+
+    METHOD_CONTENT="$(awk -v FN="$METHOD" '
+        /^\.method/ && index($0, FN) { inside = 1 }
+        inside { print }
+        inside && /^\.end method/ { exit }
+    ' "$SMALI_FILE")"
+    if grep -Fq -- "\"$FROM\"" <<< "$METHOD_CONTENT" || \
+            grep -Fxq -- "$FROM" <<< "$METHOD_CONTENT"; then
+        SMALI_PATCH "system" "$FILE" "$SMALI" "replace" "$METHOD" "$FROM" "$TO"
+    elif grep -Fq -- "\"$TO\"" <<< "$METHOD_CONTENT" || \
+            grep -Fxq -- "$TO" <<< "$METHOD_CONTENT"; then
+        LOG "- $LABEL already uses the target shipping API level"
+    else
+        LOG "- $LABEL has no legacy shipping API literal in $METHOD; skipping"
+    fi
+}
+
 # SEC_PRODUCT_FEATURE_BUILD_MAINLINE_API_LEVEL
 if [[ "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" != "$TARGET_PRODUCT_SHIPPING_API_LEVEL" ]]; then
-    SMALI_PATCH "system" "system/framework/esecomm.jar" \
-        "smali/com/sec/esecomm/EsecommAdapter.smali" "replace" \
-        "<clinit>()V" \
-        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" \
-        "$TARGET_PRODUCT_SHIPPING_API_LEVEL"
-    DECODE_APK "system" "system/framework/services.jar" || return 1
-    HDM_SAK_MANAGER_SMALI="$APKTOOL_DIR/system/framework/services.jar/smali/com/android/server/enterprise/hdm/HdmSakManager.smali"
-    if [ -f "$HDM_SAK_MANAGER_SMALI" ]; then
-        SMALI_PATCH "system" "system/framework/services.jar" \
-            "smali/com/android/server/enterprise/hdm/HdmSakManager.smali" "replace" \
-            "isSupported(Landroid/content/Context;)Z" \
-            "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" \
-            "$TARGET_PRODUCT_SHIPPING_API_LEVEL"
-    else
-        LOG "HdmSakManager is absent; skipping legacy shipping API patch"
-    fi
-    # Recent AIDL-only HDM implementations no longer carry the shipping API
-    # check (or even an explicit constructor) in HdmVendorController.
-    # Patch it only on older sources where that literal is actually present.
-    HDM_VENDOR_CONTROLLER="$APKTOOL_DIR/system/framework/services.jar/smali/com/android/server/enterprise/hdm/HdmVendorController.smali"
-    if [ -f "$HDM_VENDOR_CONTROLLER" ] && \
-            grep -q "\"$SOURCE_PRODUCT_SHIPPING_API_LEVEL\"" "$HDM_VENDOR_CONTROLLER"; then
-        SMALI_PATCH "system" "system/framework/services.jar" \
-            "smali/com/android/server/enterprise/hdm/HdmVendorController.smali" "replace" \
-            "<init>()V" \
-            "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" \
-            "$TARGET_PRODUCT_SHIPPING_API_LEVEL"
-    else
-        LOG "HdmVendorController has no shipping API literal; skipping legacy patch"
-    fi
-    TA_PROXY_SMALI="$APKTOOL_DIR/system/framework/services.jar/smali/com/android/server/knox/dar/ddar/ta/TAProxy.smali"
-    if [ -f "$TA_PROXY_SMALI" ]; then
-        SMALI_PATCH "system" "system/framework/services.jar" \
-            "smali/com/android/server/knox/dar/ddar/ta/TAProxy.smali" "replace" \
-            "updateServiceHolder(Z)V" \
-            "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" \
-            "$TARGET_PRODUCT_SHIPPING_API_LEVEL"
-    else
-        LOG "TAProxy is absent; skipping legacy shipping API patch"
-    fi
-    SMALI_PATCH "system" "system/framework/services.jar" \
-        "smali/com/android/server/SystemServer.smali" "replace" \
+    PATCH_SHIPPING_API_LITERAL_IF_PRESENT "system/framework/esecomm.jar" \
+        "smali/com/sec/esecomm/EsecommAdapter.smali" "<clinit>()V" \
+        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" "$TARGET_PRODUCT_SHIPPING_API_LEVEL" "EsecommAdapter"
+    PATCH_SHIPPING_API_LITERAL_IF_PRESENT "system/framework/services.jar" \
+        "smali/com/android/server/enterprise/hdm/HdmSakManager.smali" \
+        "isSupported(Landroid/content/Context;)Z" \
+        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" "$TARGET_PRODUCT_SHIPPING_API_LEVEL" "HdmSakManager"
+    PATCH_SHIPPING_API_LITERAL_IF_PRESENT "system/framework/services.jar" \
+        "smali/com/android/server/enterprise/hdm/HdmVendorController.smali" "<init>()V" \
+        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" "$TARGET_PRODUCT_SHIPPING_API_LEVEL" "HdmVendorController"
+    PATCH_SHIPPING_API_LITERAL_IF_PRESENT "system/framework/services.jar" \
+        "smali/com/android/server/knox/dar/ddar/ta/TAProxy.smali" "updateServiceHolder(Z)V" \
+        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" "$TARGET_PRODUCT_SHIPPING_API_LEVEL" "TAProxy"
+    PATCH_SHIPPING_API_LITERAL_IF_PRESENT "system/framework/services.jar" \
+        "smali/com/android/server/SystemServer.smali" \
         "startOtherServices(Lcom/android/server/utils/TimingsTraceAndSlog;)V" \
         "MAINLINE_API_LEVEL: $SOURCE_PRODUCT_SHIPPING_API_LEVEL" \
-        "MAINLINE_API_LEVEL: $TARGET_PRODUCT_SHIPPING_API_LEVEL"
-    SMALI_PATCH "system" "system/framework/services.jar" \
-        "smali/com/android/server/SystemServer.smali" "replace" \
+        "MAINLINE_API_LEVEL: $TARGET_PRODUCT_SHIPPING_API_LEVEL" "SystemServer mainline API log"
+    PATCH_SHIPPING_API_LITERAL_IF_PRESENT "system/framework/services.jar" \
+        "smali/com/android/server/SystemServer.smali" \
         "startOtherServices(Lcom/android/server/utils/TimingsTraceAndSlog;)V" \
-        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" \
-        "$TARGET_PRODUCT_SHIPPING_API_LEVEL"
-    SMALI_PATCH "system" "system/framework/services.jar" \
-        "smali_classes2/com/android/server/power/PowerManagerUtil.smali" "replace" \
-        "<clinit>()V" \
-        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" \
-        "$TARGET_PRODUCT_SHIPPING_API_LEVEL"
-    SMALI_PATCH "system" "system/framework/services.jar" \
-        "smali_classes2/com/android/server/sepunion/EngmodeService\$EngmodeTimeThread.smali" "replace" \
-        "<clinit>()V" \
-        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" \
-        "$TARGET_PRODUCT_SHIPPING_API_LEVEL"
-    unset HDM_SAK_MANAGER_SMALI TA_PROXY_SMALI
+        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" "$TARGET_PRODUCT_SHIPPING_API_LEVEL" "SystemServer"
+    PATCH_SHIPPING_API_LITERAL_IF_PRESENT "system/framework/services.jar" \
+        "smali_classes2/com/android/server/power/PowerManagerUtil.smali" "<clinit>()V" \
+        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" "$TARGET_PRODUCT_SHIPPING_API_LEVEL" "PowerManagerUtil"
+    PATCH_SHIPPING_API_LITERAL_IF_PRESENT "system/framework/services.jar" \
+        "smali_classes2/com/android/server/sepunion/EngmodeService\$EngmodeTimeThread.smali" "<clinit>()V" \
+        "$SOURCE_PRODUCT_SHIPPING_API_LEVEL" "$TARGET_PRODUCT_SHIPPING_API_LEVEL" "EngmodeTimeThread"
 fi
+unset -f PATCH_SHIPPING_API_LITERAL_IF_PRESENT
 
 # SEC_PRODUCT_FEATURE_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION
 if [[ "$SOURCE_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION" != "$TARGET_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION" ]]; then
@@ -192,20 +202,23 @@ if [[ "$SOURCE_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION" != "$TARGET_AUDIO_CONFIG_RE
             ABORT "SemMultiMicManager.smali was not found in framework.jar"
             return 1
         }
-        SOURCE_RECORDALIVE_LITERAL="$(RESOLVE_RECORDALIVE_LITERAL \
-            "$SEM_MULTI_MIC_ROOT/$SEM_MULTI_MIC_SMALI" \
-            "$SOURCE_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION" \
-            "${TARGET_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION//none/}")" || return 1
-        SMALI_PATCH "system" "system/framework/framework.jar" \
-            "$SEM_MULTI_MIC_SMALI" "replace" \
-            "isSupported()Z" \
-            "$SOURCE_RECORDALIVE_LITERAL" \
-            "${TARGET_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION//none/}"
-        SMALI_PATCH "system" "system/framework/framework.jar" \
-            "$SEM_MULTI_MIC_SMALI" "replace" \
-            "isSupported(I)Z" \
-            "$SOURCE_RECORDALIVE_LITERAL" \
-            "${TARGET_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION//none/}"
+        if SOURCE_RECORDALIVE_LITERAL="$(RESOLVE_RECORDALIVE_LITERAL \
+                "$SEM_MULTI_MIC_ROOT/$SEM_MULTI_MIC_SMALI" \
+                "$SOURCE_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION" \
+                "${TARGET_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION//none/}")"; then
+            SMALI_PATCH "system" "system/framework/framework.jar" \
+                "$SEM_MULTI_MIC_SMALI" "replace" \
+                "isSupported()Z" \
+                "$SOURCE_RECORDALIVE_LITERAL" \
+                "${TARGET_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION//none/}"
+            SMALI_PATCH "system" "system/framework/framework.jar" \
+                "$SEM_MULTI_MIC_SMALI" "replace" \
+                "isSupported(I)Z" \
+                "$SOURCE_RECORDALIVE_LITERAL" \
+                "${TARGET_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION//none/}"
+        else
+            LOG "- Keeping the beta's native record-alive implementation"
+        fi
     else
         # TODO handle this condition
         LOG_MISSING_PATCHES "SOURCE_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION" "TARGET_AUDIO_CONFIG_RECORDALIVE_LIB_VERSION"
@@ -216,23 +229,33 @@ fi
 if $SOURCE_AUDIO_SUPPORT_ACH_RINGTONE; then
     if ! $TARGET_AUDIO_SUPPORT_ACH_RINGTONE; then
         DECODE_APK "system" "system/framework/framework.jar"
-        ACH_RUNE="$APKTOOL_DIR/system/framework/framework.jar/smali_classes6/com/samsung/android/audio/Rune.smali"
-        ACH_VIB_RUNE="$APKTOOL_DIR/system/framework/framework.jar/smali_classes6/com/samsung/android/vibrator/VibRune.smali"
+        ACH_FRAMEWORK_ROOT="$APKTOOL_DIR/system/framework/framework.jar"
+        ACH_RUNE="$(find "$ACH_FRAMEWORK_ROOT" -path '*/com/samsung/android/audio/Rune.smali' -type f -print -quit)"
+        ACH_VIB_RUNE="$(find "$ACH_FRAMEWORK_ROOT" -path '*/com/samsung/android/vibrator/VibRune.smali' -type f -print -quit)"
+        if [ ! -f "$ACH_RUNE" ] || [ ! -f "$ACH_VIB_RUNE" ]; then
+            ABORT "Rune.smali or VibRune.smali is missing from framework.jar"
+        fi
+        ACH_RUNE_SMALI="${ACH_RUNE#"$ACH_FRAMEWORK_ROOT/"}"
+        ACH_VIB_RUNE_SMALI="${ACH_VIB_RUNE#"$ACH_FRAMEWORK_ROOT/"}"
         ACH_PATCH="$MODPATH/audio/ach/framework.jar/0001-Disable-ACH-ringtone-support.patch"
         if LC_ALL=C git apply --check \
                 --directory="$APKTOOL_DIR/system/framework/framework.jar" \
                 --unsafe-paths "$ACH_PATCH" > /dev/null 2>&1; then
             APPLY_PATCH "system" "system/framework/framework.jar" "$ACH_PATCH"
         else
-            # Android 17 inserts extra Rune fields and changes the donor
-            # hunk context. Keep the same semantics by changing only the
-            # two named booleans; never replace an unrelated v2 register.
-            if grep -Fq 'SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z' "$ACH_RUNE"; then
-                if grep -Fq 'SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z = true' "$ACH_RUNE"; then
-                    EVAL "sed -i 's/SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z = true/SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z = false/' \"$ACH_RUNE\""
-                elif ! grep -Fq 'sput-boolean v1, Lcom/samsung/android/audio/Rune;->SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z' "$ACH_RUNE"; then
-                    EVAL "sed -i -E '/SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z/ s/sput-boolean v[0-9]+/sput-boolean v1/' \"$ACH_RUNE\""
-                fi
+            # Android 17 moved Rune to another dex and changed register use.
+            # In this beta v1 is true and v3 is explicitly initialized to
+            # false in <clinit>, so change only the ACH field assignment.
+            if grep -Fq 'SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z = true' "$ACH_RUNE"; then
+                EVAL "sed -i 's/SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z = true/SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z = false/' \"$ACH_RUNE\""
+            elif grep -Fq 'sput-boolean v3, Lcom/samsung/android/audio/Rune;->SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z' "$ACH_RUNE"; then
+                LOG "- ACH ringtone support is already disabled in Rune"
+            elif grep -Fq 'sput-boolean v1, Lcom/samsung/android/audio/Rune;->SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z' "$ACH_RUNE" && \
+                    awk '/^\.method static constructor blacklist <clinit>\(\)V/ { inside = 1 } inside { print } inside && /^\.end method/ { exit }' "$ACH_RUNE" | grep -Fq 'const/4 v3, 0x0'; then
+                SMALI_PATCH "system" "system/framework/framework.jar" \
+                    "$ACH_RUNE_SMALI" "replace" "<clinit>()V" \
+                    'sput-boolean v1, Lcom/samsung/android/audio/Rune;->SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z' \
+                    'sput-boolean v3, Lcom/samsung/android/audio/Rune;->SEC_AUDIO_SUPPORT_ACH_RINGTONE:Z'
             else
                 ABORT "Rune.smali has no recognizable ACH ringtone flag"
             fi
@@ -242,7 +265,7 @@ if $SOURCE_AUDIO_SUPPORT_ACH_RINGTONE; then
                 ABORT "VibRune.smali has no recognizable ACH flag"
             fi
         fi
-        unset ACH_RUNE ACH_VIB_RUNE ACH_PATCH
+        unset ACH_FRAMEWORK_ROOT ACH_RUNE ACH_VIB_RUNE ACH_RUNE_SMALI ACH_VIB_RUNE_SMALI ACH_PATCH
     fi
 else
     if $TARGET_AUDIO_SUPPORT_ACH_RINGTONE; then
@@ -1164,10 +1187,28 @@ if [[ "$SOURCE_RIL_FEATURES" != "$TARGET_RIL_FEATURES" ]] || \
 fi
 
 # SEC_PRODUCT_FEATURE_RIL_FEATURES
+PATCH_REPLACEALL_IF_PRESENT()
+{
+    local PARTITION="$1"
+    local FILE="$2"
+    local SMALI="$3"
+    local FROM="$4"
+    local TO="$5"
+    local SMALI_FILE="$APKTOOL_DIR/$PARTITION/${FILE//system/}/$SMALI"
+
+    DECODE_APK "$PARTITION" "$FILE" || return 1
+    if grep -Fq -- "$FROM" "$SMALI_FILE"; then
+        SMALI_PATCH "$PARTITION" "$FILE" "$SMALI" "replaceall" "$FROM" "$TO"
+    elif grep -Fq -- "$TO" "$SMALI_FILE"; then
+        LOG "- $SMALI already uses the target literal; skipping"
+    else
+        LOG "- $SMALI has neither source nor target RIL literal; skipping"
+    fi
+}
 if [[ "$SOURCE_RIL_FEATURES" != "$TARGET_RIL_FEATURES" ]]; then
     if [[ "$SOURCE_RIL_FEATURES" != "none" ]]; then
-        SMALI_PATCH "system" "system/framework/framework.jar" \
-            "$TELEPHONY_FEATURES" "replaceall" \
+        PATCH_REPLACEALL_IF_PRESENT "system" "system/framework/framework.jar" \
+            "$TELEPHONY_FEATURES" \
             "$SOURCE_RIL_FEATURES" \
             "${TARGET_RIL_FEATURES//none/}"
 
@@ -1179,7 +1220,10 @@ if [[ "$SOURCE_RIL_FEATURES" != "$TARGET_RIL_FEATURES" ]]; then
         TELEPHONY_LOGGER="$APKTOOL_DIR/system/framework/telephony-common.jar/smali/com/android/internal/telephony/TelephonyLogger.smali"
         TELEPHONY_LOGGER_SOURCE="$SOURCE_RIL_FEATURES"
         TELEPHONY_LOGGER_TARGET="${TARGET_RIL_FEATURES//none/}"
-        if grep -Fq "Feature=SecProductFeatures: (" "$TELEPHONY_LOGGER"; then
+        if grep -Fq 'E911ExtraConfig: (' "$TELEPHONY_LOGGER"; then
+            TELEPHONY_LOGGER_SOURCE=" Feature=SecProductFeatures: ($TELEPHONY_LOGGER_SOURCE), E911ExtraConfig: ("
+            TELEPHONY_LOGGER_TARGET=" Feature=SecProductFeatures: ($TELEPHONY_LOGGER_TARGET), E911ExtraConfig: ("
+        elif grep -Fq 'PackageManager: (' "$TELEPHONY_LOGGER"; then
             TELEPHONY_LOGGER_SOURCE=" Feature=SecProductFeatures: ($TELEPHONY_LOGGER_SOURCE), PackageManager: ("
             TELEPHONY_LOGGER_TARGET=" Feature=SecProductFeatures: ($TELEPHONY_LOGGER_TARGET), PackageManager: ("
         fi
@@ -1190,15 +1234,15 @@ if [[ "$SOURCE_RIL_FEATURES" != "$TARGET_RIL_FEATURES" ]]; then
             "$TELEPHONY_LOGGER_TARGET"
         # SamsungProductFeatureTag is not present in every TeleService release.
         if [ -f "$APKTOOL_DIR/system/priv-app/TeleService/TeleService.apk/smali/com/samsung/telephony/model/feature/tag/SamsungProductFeatureTag.smali" ]; then
-            SMALI_PATCH "system" "system/priv-app/TeleService/TeleService.apk" \
-                "smali/com/samsung/telephony/model/feature/tag/SamsungProductFeatureTag.smali" "replaceall" \
+            PATCH_REPLACEALL_IF_PRESENT "system" "system/priv-app/TeleService/TeleService.apk" \
+                "smali/com/samsung/telephony/model/feature/tag/SamsungProductFeatureTag.smali" \
                 "$SOURCE_RIL_FEATURES" \
                 "${TARGET_RIL_FEATURES//none/}"
         fi
         # SamsungFeatureSatellite was removed from newer TeleService builds.
         if [ -f "$APKTOOL_DIR/system/priv-app/TeleService/TeleService.apk/smali/com/samsung/telephony/model/feature/SamsungFeatureSatellite.smali" ]; then
-            SMALI_PATCH "system" "system/priv-app/TeleService/TeleService.apk" \
-                "smali/com/samsung/telephony/model/feature/SamsungFeatureSatellite.smali" "replaceall" \
+            PATCH_REPLACEALL_IF_PRESENT "system" "system/priv-app/TeleService/TeleService.apk" \
+                "smali/com/samsung/telephony/model/feature/SamsungFeatureSatellite.smali" \
                 "$SOURCE_RIL_FEATURES" \
                 "${TARGET_RIL_FEATURES//none/}"
         fi
@@ -1207,6 +1251,7 @@ if [[ "$SOURCE_RIL_FEATURES" != "$TARGET_RIL_FEATURES" ]]; then
         LOG_MISSING_PATCHES "SOURCE_RIL_FEATURES" "TARGET_RIL_FEATURES"
     fi
 fi
+unset -f PATCH_REPLACEALL_IF_PRESENT
 
 # SEC_PRODUCT_FEATURE_RIL_SIM_CONFIG_MULTISIM_TRAYCOUNT
 if [[ "$SOURCE_RIL_SIM_CONFIG_MULTISIM_TRAYCOUNT" != "$TARGET_RIL_SIM_CONFIG_MULTISIM_TRAYCOUNT" ]]; then
@@ -1508,10 +1553,9 @@ if [[ "$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION" != "$TARGET_WLAN_CONFIG_C
                 "$SOURCE_WLAN_CONFIG_DYNAMIC_SWITCH" \
                 "0" > /dev/null
         fi
-        # Older donor diffs assumed SemWifiInjector's source literal was
-        # exactly "2". Resolve the current source value in the constructor
-        # instead, because newer source firmware can change that literal while
-        # keeping the same feature contract.
+        # Resolve the connection-personalizer value in the donor constructor.
+        # Newer builds pass the numeric mode directly to the constructor
+        # instead of embedding it as a configuration string.
         SEMWIFI_INJECTOR_PATH="$SEMWIFI_INJECTOR_ROOT/$SEMWIFI_INJECTOR_SMALI"
         SEMWIFI_INIT_CONTENT="$(sed -n \
             '/^\.method.*<init>(Landroid\/content\/Context;)V$/,/^\.end method$/p' \
@@ -1524,6 +1568,29 @@ if [[ "$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION" != "$TARGET_WLAN_CONFIG_C
                     "<init>(Landroid/content/Context;)V" \
                     "$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION" \
                     "CONFIG_CONNECTION_PERSONALIZATION"
+            elif [[ "$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION" =~ ^[0-9]+$ ]] && \
+                    grep -Fq 'ConnectionPersonalizer;-><init>' <<< "$SEMWIFI_INIT_CONTENT"; then
+                PERSONALIZER_CONFIG_REG="$(sed -n \
+                    '/invoke-direct.*ConnectionPersonalizer;-><init>/s/.*{[^}]*, *\(v[0-9][0-9]*\)}.*/\1/p' \
+                    <<< "$SEMWIFI_INIT_CONTENT" | tail -n 1)"
+                if [[ -n "$PERSONALIZER_CONFIG_REG" ]] && \
+                        grep -Fq "const/4 $PERSONALIZER_CONFIG_REG, 0x$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION" \
+                            <<< "$SEMWIFI_INIT_CONTENT"; then
+                    SMALI_PATCH "system" "system/framework/semwifi-service.jar" \
+                        "$SEMWIFI_INJECTOR_SMALI" "replace" \
+                        "<init>(Landroid/content/Context;)V" \
+                        "const/4 $PERSONALIZER_CONFIG_REG, 0x$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION" \
+                        "const/4 $PERSONALIZER_CONFIG_REG, 0x$TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION"
+                    # This donor uses a numeric constructor argument, so the
+                    # generic marker replacement below is not needed.
+                    SEMWIFI_INIT_CONTENT="$(sed -n \
+                        '/^\.method.*<init>(Landroid\/content\/Context;)V$/,/^\.end method$/p' \
+                        "$SEMWIFI_INJECTOR_PATH")"
+                elif ! grep -Fq "const/4 $PERSONALIZER_CONFIG_REG, 0x$TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION" \
+                        <<< "$SEMWIFI_INIT_CONTENT"; then
+                    ABORT "Unable to resolve the ConnectionPersonalizer mode in SemWifiInjector"
+                    return 1
+                fi
             else
                 ABORT "Unable to locate the source CONNECTION_PERSONALIZATION literal in SemWifiInjector"
                 return 1
@@ -1536,23 +1603,41 @@ if [[ "$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION" != "$TARGET_WLAN_CONFIG_C
                 "0" \
                 "$SOURCE_WLAN_CONFIG_DYNAMIC_SWITCH" > /dev/null
         fi
-        SMALI_PATCH "system" "system/framework/semwifi-service.jar" \
-            "$SEMWIFI_INJECTOR_SMALI" "replace" \
-            "<init>(Landroid/content/Context;)V" \
-            "CONFIG_CONNECTION_PERSONALIZATION" \
-            "$TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION" | \
-            sed "s/CONFIG_CONNECTION_PERSONALIZATION/$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION/g"
+        if grep -Fq 'CONFIG_CONNECTION_PERSONALIZATION' <<< "$SEMWIFI_INIT_CONTENT"; then
+            SMALI_PATCH "system" "system/framework/semwifi-service.jar" \
+                "$SEMWIFI_INJECTOR_SMALI" "replace" \
+                "<init>(Landroid/content/Context;)V" \
+                "CONFIG_CONNECTION_PERSONALIZATION" \
+                "$TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION" | \
+                sed "s/CONFIG_CONNECTION_PERSONALIZATION/$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION/g"
+        fi
         BTM_CONTROLLER="$(find "$APKTOOL_DIR/system/priv-app/SecSettings/SecSettings.apk" \
             -path '*/com/samsung/android/settings/wifi/develop/*/btm/BtmController.smali' \
             -printf '%P\n' -quit)"
         if [[ -z "$BTM_CONTROLLER" ]]; then
             ABORT "Failed to locate BtmController.smali in SecSettings.apk"
         fi
-        SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
-            "$BTM_CONTROLLER" "replace" \
-            "getAvailabilityStatus()I" \
-            "$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION" \
-            "$TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION"
+        BTM_STATUS_CONTENT="$(sed -n \
+            '/^\.method.*getAvailabilityStatus()I$/,/^\.end method$/p' \
+            "$APKTOOL_DIR/system/priv-app/SecSettings/SecSettings.apk/$BTM_CONTROLLER")"
+        BTM_SOURCE_CONST="$(grep -E '^[[:space:]]*const/(4|16) [vp][0-9]+, 0x[0-9a-fA-F]+$' \
+            <<< "$BTM_STATUS_CONTENT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | head -n 1)"
+        BTM_SOURCE_HEX="$(printf '%x' "$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION")"
+        BTM_TARGET_HEX="$(printf '%x' "$TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION")"
+        if [[ "$BTM_SOURCE_CONST" == *", 0x$BTM_SOURCE_HEX" ]]; then
+            BTM_TARGET_CONST="${BTM_SOURCE_CONST%,*}, 0x$BTM_TARGET_HEX"
+            SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
+                "$BTM_CONTROLLER" "replace" \
+                "getAvailabilityStatus()I" \
+                "$BTM_SOURCE_CONST" \
+                "$BTM_TARGET_CONST"
+        elif [[ "$BTM_SOURCE_CONST" == *", 0x$BTM_TARGET_HEX" ]]; then
+            LOG "- Connection-personalization availability is already set to $TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION"
+        else
+            ABORT "Unable to resolve the connection-personalization availability in BtmController"
+            return 1
+        fi
+        unset BTM_STATUS_CONTENT BTM_SOURCE_CONST BTM_SOURCE_HEX BTM_TARGET_HEX BTM_TARGET_CONST
 
         if [[ "$SOURCE_WLAN_CONFIG_DYNAMIC_SWITCH" != "$TARGET_WLAN_CONFIG_DYNAMIC_SWITCH" ]]; then
             SMALI_PATCH "system" "system/framework/semwifi-service.jar" \

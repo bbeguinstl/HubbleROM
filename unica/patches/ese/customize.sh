@@ -17,6 +17,27 @@ LOG_MISSING_PATCHES()
         ABORT "${MESSAGE}. Aborting"
     fi
 }
+
+REPLACEALL_SMALI_IF_NEEDED()
+{
+    local PARTITION="$1"
+    local APK="$2"
+    local SMALI="$3"
+    local FROM="$4"
+    local TO="$5"
+    local SMALI_FILE="$APKTOOL_DIR/$PARTITION/${APK//system/}/$SMALI"
+
+    DECODE_APK "$PARTITION" "$APK"
+    if grep -Fq -- "$FROM" "$SMALI_FILE"; then
+        SMALI_PATCH "$PARTITION" "$APK" "$SMALI" "replaceall" "$FROM" "$TO"
+    elif [ -n "$TO" ] && grep -Fq -- "$TO" "$SMALI_FILE"; then
+        LOG "- $SMALI already uses the target value; skipping"
+    elif [ -z "$TO" ]; then
+        LOG "- $SMALI no longer contains the source value; skipping"
+    else
+        ABORT "Unable to find either source or target value in $SMALI"
+    fi
+}
 # ]
 
 if [[ "$SOURCE_SECURITY_CONFIG_ESE_CHIP_VENDOR" == "NXP" ]] && [[ "$SOURCE_SECURITY_CONFIG_ESE_COS_NAME" == "JCOP6.2U" ]] && \
@@ -75,32 +96,50 @@ elif [[ "$SOURCE_SECURITY_CONFIG_ESE_CHIP_VENDOR" != "none" ]] && [[ "$SOURCE_SE
             ", eSE_COS: ${TARGET_SECURITY_CONFIG_ESE_COS_NAME//none/}"
     fi
     if [[ "$SOURCE_SECURITY_CONFIG_ESE_CHIP_VENDOR" != "$TARGET_SECURITY_CONFIG_ESE_CHIP_VENDOR" ]]; then
-        SMALI_PATCH "system" "system/framework/framework.jar" \
-            "smali_classes6/com/android/server/SemService.smali" "replaceall" \
+        REPLACEALL_SMALI_IF_NEEDED "system" "system/framework/framework.jar" \
+            "smali_classes6/com/android/server/SemService.smali" \
             "$SOURCE_SECURITY_CONFIG_ESE_CHIP_VENDOR" \
             "${TARGET_SECURITY_CONFIG_ESE_CHIP_VENDOR//none/}"
     fi
     if [[ "$SOURCE_SECURITY_CONFIG_ESE_COS_NAME" != "$TARGET_SECURITY_CONFIG_ESE_COS_NAME" ]]; then
-        SMALI_PATCH "system" "system/framework/framework.jar" \
-            "smali_classes6/com/android/server/SemService.smali" "replaceall" \
+        REPLACEALL_SMALI_IF_NEEDED "system" "system/framework/framework.jar" \
+            "smali_classes6/com/android/server/SemService.smali" \
             "$SOURCE_SECURITY_CONFIG_ESE_COS_NAME" \
             "${TARGET_SECURITY_CONFIG_ESE_COS_NAME//none/}"
     fi
+    SEM_SERVICE_MANAGER_SMALI="smali_classes6/com/samsung/android/service/SemService/SemServiceManager.smali"
+    if [ ! -f "$APKTOOL_DIR/system/framework/framework.jar/$SEM_SERVICE_MANAGER_SMALI" ]; then
+        SEM_SERVICE_MANAGER_MATCHES="$(find "$APKTOOL_DIR/system/framework/framework.jar" -path \
+            '*/com/samsung/android/service/SemService/SemServiceManager.smali' -type f | sort)"
+        if [ "$(printf '%s\n' "$SEM_SERVICE_MANAGER_MATCHES" | sed '/^$/d' | wc -l)" -ne 1 ]; then
+            ABORT "Unable to uniquely locate SemServiceManager in framework.jar"
+        fi
+        SEM_SERVICE_MANAGER_SMALI="${SEM_SERVICE_MANAGER_MATCHES#"$APKTOOL_DIR/system/framework/framework.jar/"}"
+    fi
     if [[ "$SOURCE_SECURITY_CONFIG_ESE_CHIP_VENDOR" != "$TARGET_SECURITY_CONFIG_ESE_CHIP_VENDOR" ]]; then
-        SMALI_PATCH "system" "system/framework/framework.jar" \
-            "smali_classes6/com/samsung/android/service/SemService/SemServiceManager.smali" "replaceall" \
+        REPLACEALL_SMALI_IF_NEEDED "system" "system/framework/framework.jar" \
+            "$SEM_SERVICE_MANAGER_SMALI" \
             "$SOURCE_SECURITY_CONFIG_ESE_CHIP_VENDOR" \
             "${TARGET_SECURITY_CONFIG_ESE_CHIP_VENDOR//none/}"
     fi
     if [[ "$SOURCE_SECURITY_CONFIG_ESE_COS_NAME" != "$TARGET_SECURITY_CONFIG_ESE_COS_NAME" ]]; then
-        SMALI_PATCH "system" "system/framework/framework.jar" \
-            "smali_classes6/com/samsung/android/service/SemService/SemServiceManager.smali" "replaceall" \
+        REPLACEALL_SMALI_IF_NEEDED "system" "system/framework/framework.jar" \
+            "$SEM_SERVICE_MANAGER_SMALI" \
             "$SOURCE_SECURITY_CONFIG_ESE_COS_NAME" \
             "${TARGET_SECURITY_CONFIG_ESE_COS_NAME//none/}"
     fi
     if [[ "$SOURCE_SECURITY_CONFIG_ESE_CHIP_VENDOR" != "$TARGET_SECURITY_CONFIG_ESE_CHIP_VENDOR" ]]; then
-        SMALI_PATCH "system" "system/framework/services.jar" \
-            "smali_classes2/com/samsung/ucm/ucmservice/CredentialManagerService.smali" "replaceall" \
+        CREDENTIAL_MANAGER_SERVICE_SMALI="smali_classes2/com/samsung/ucm/ucmservice/CredentialManagerService.smali"
+        if [ ! -f "$APKTOOL_DIR/system/framework/services.jar/$CREDENTIAL_MANAGER_SERVICE_SMALI" ]; then
+            CREDENTIAL_MANAGER_SERVICE_MATCHES="$(find "$APKTOOL_DIR/system/framework/services.jar" -path \
+                '*/com/samsung/ucm/ucmservice/CredentialManagerService.smali' -type f | sort)"
+            if [ "$(printf '%s\n' "$CREDENTIAL_MANAGER_SERVICE_MATCHES" | sed '/^$/d' | wc -l)" -ne 1 ]; then
+                ABORT "Unable to uniquely locate Samsung CredentialManagerService in services.jar"
+            fi
+            CREDENTIAL_MANAGER_SERVICE_SMALI="${CREDENTIAL_MANAGER_SERVICE_MATCHES#"$APKTOOL_DIR/system/framework/services.jar/"}"
+        fi
+        REPLACEALL_SMALI_IF_NEEDED "system" "system/framework/services.jar" \
+            "$CREDENTIAL_MANAGER_SERVICE_SMALI" \
             "$SOURCE_SECURITY_CONFIG_ESE_CHIP_VENDOR" \
             "${TARGET_SECURITY_CONFIG_ESE_CHIP_VENDOR//none/}"
     fi
@@ -110,3 +149,6 @@ else
 fi
 
 unset -f LOG_MISSING_PATCHES
+unset -f REPLACEALL_SMALI_IF_NEEDED
+unset SEM_SERVICE_MANAGER_SMALI SEM_SERVICE_MANAGER_MATCHES \
+    CREDENTIAL_MANAGER_SERVICE_SMALI CREDENTIAL_MANAGER_SERVICE_MATCHES

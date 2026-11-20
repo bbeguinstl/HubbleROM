@@ -72,20 +72,36 @@ RESOLVE_SMALI_PATH()
     local CANDIDATE="$2"
     local METHOD="$3"
     local VALUE="$4"
+    local REPLACEMENT="$5"
     local MATCHES
+    local METHOD_CONTENT
 
-    if [ -f "$ROOT/$CANDIDATE" ] && \
-            grep -Fq -- "\"$VALUE\"" \
-            <(EXTRACT_METHOD "$ROOT/$CANDIDATE" "$METHOD"); then
-        printf '%s\n' "$CANDIDATE"
-        return 0
+    if [ -f "$ROOT/$CANDIDATE" ]; then
+        METHOD_CONTENT="$(EXTRACT_METHOD "$ROOT/$CANDIDATE" "$METHOD")"
+        if grep -Fq -- "\"$VALUE\"" <<< "$METHOD_CONTENT" || \
+                { [ -n "$REPLACEMENT" ] && grep -Fq -- "\"$REPLACEMENT\"" <<< "$METHOD_CONTENT"; }; then
+            printf '%s\n' "$CANDIDATE"
+            return 0
+        fi
     fi
-    MATCHES="$(grep -RFl --include='*.smali' -- "$VALUE" "$ROOT" || true)"
+
+    # Obfuscated class names move between releases, and the same literal may
+    # occur in unrelated methods. Resolve the class by the method and value
+    # together so a nearby candidate path cannot be selected accidentally.
+    MATCHES="$(while IFS= read -r FILE_PATH; do
+        METHOD_CONTENT="$(EXTRACT_METHOD "$FILE_PATH" "$METHOD")"
+        if grep -Fq -- "\"$VALUE\"" <<< "$METHOD_CONTENT" || \
+                { [ -n "$REPLACEMENT" ] && grep -Fq -- "\"$REPLACEMENT\"" <<< "$METHOD_CONTENT"; }; then
+            printf '%s\n' "$FILE_PATH"
+        fi
+    done < <(find "$ROOT" -type f -name '*.smali' | sort))"
     if [ "$(printf '%s\n' "$MATCHES" | sed '/^$/d' | wc -l)" -eq 1 ]; then
         printf '%s\n' "${MATCHES#"$ROOT/"}"
         return 0
     fi
-    printf '%s\n' "$CANDIDATE"
+
+    _LOG "Unable to uniquely resolve $METHOD in $ROOT"
+    return 1
 }
 
 # Samsung renames the obfuscated SDHMS classes between platform releases.
@@ -107,7 +123,8 @@ if [[ "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" != "$TARGET_DVFSAPP_CONFIG_D
     SSRM_JAR_FEATURE_SMALI="smali/com/android/server/ssrm/Feature.smali"
     SSRM_JAR_FEATURE_SMALI="$(RESOLVE_SMALI_PATH \
         "$SSRM_JAR_ROOT" "$SSRM_JAR_FEATURE_SMALI" \
-        "<clinit>()V" "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME")" || return 1
+        "<clinit>()V" "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" \
+        "$TARGET_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME")" || return 1
     SSRM_JAR_FEATURE_LITERAL="$(RESOLVE_POLICY_LITERAL \
         "$SSRM_JAR_ROOT/$SSRM_JAR_FEATURE_SMALI" "<clinit>()V" \
         "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" \
@@ -131,7 +148,8 @@ if [[ "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" != "$TARGET_DVFSAPP_CONFIG_D
     # com/sec/android/sdhms/performance/PerformanceFeature
     SDHMS_ROOT="$APKTOOL_DIR/system/priv-app/SamsungDeviceHealthManagerService/SamsungDeviceHealthManagerService.apk"
     DVFS_FEATURE_SMALI="$(RESOLVE_SMALI_PATH "$SDHMS_ROOT" "$DVFS_FEATURE_SMALI" \
-        "<clinit>()V" "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME")" || return 1
+        "<clinit>()V" "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" \
+        "$TARGET_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME")" || return 1
     DVFS_FEATURE_LITERAL="$(RESOLVE_POLICY_LITERAL "$SDHMS_ROOT/$DVFS_FEATURE_SMALI" \
         "<clinit>()V" "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" \
         "$TARGET_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" \
@@ -143,7 +161,8 @@ if [[ "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" != "$TARGET_DVFSAPP_CONFIG_D
         "$TARGET_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME"
     # com/sec/android/sdhms/performance/settings/PerformanceProperties
     DVFS_PROPERTIES_SMALI="$(RESOLVE_SMALI_PATH "$SDHMS_ROOT" "$DVFS_PROPERTIES_SMALI" \
-        "<init>(Landroid/content/Context;)V" "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME")" || return 1
+        "<init>(Landroid/content/Context;)V" "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" \
+        "$TARGET_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME")" || return 1
     DVFS_PROPERTIES_LITERAL="$(RESOLVE_POLICY_LITERAL "$SDHMS_ROOT/$DVFS_PROPERTIES_SMALI" \
         "<init>(Landroid/content/Context;)V" "$SOURCE_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" \
         "$TARGET_DVFSAPP_CONFIG_DVFS_POLICY_FILENAME" \
@@ -164,7 +183,8 @@ if [[ "$SOURCE_DVFSAPP_CONFIG_SSRM_POLICY_FILENAME" != "$TARGET_DVFSAPP_CONFIG_S
     SSRM_JAR_FEATURE_SMALI="smali/com/android/server/ssrm/Feature.smali"
     SSRM_JAR_FEATURE_SMALI="$(RESOLVE_SMALI_PATH \
         "$SSRM_JAR_ROOT" "$SSRM_JAR_FEATURE_SMALI" \
-        "<clinit>()V" "$SOURCE_DVFSAPP_CONFIG_SSRM_POLICY_FILENAME")" || return 1
+        "<clinit>()V" "$SOURCE_DVFSAPP_CONFIG_SSRM_POLICY_FILENAME" \
+        "$TARGET_DVFSAPP_CONFIG_SSRM_POLICY_FILENAME")" || return 1
     SSRM_JAR_FEATURE_LITERAL="$(RESOLVE_POLICY_LITERAL \
         "$SSRM_JAR_ROOT/$SSRM_JAR_FEATURE_SMALI" "<clinit>()V" \
         "$SOURCE_DVFSAPP_CONFIG_SSRM_POLICY_FILENAME" \
@@ -180,18 +200,13 @@ if [[ "$SOURCE_DVFSAPP_CONFIG_SSRM_POLICY_FILENAME" != "$TARGET_DVFSAPP_CONFIG_S
     DECODE_APK "system" "system/priv-app/SamsungDeviceHealthManagerService/SamsungDeviceHealthManagerService.apk"
 
     # The class is obfuscated and was renamed again in Android 17. Resolve it
-    # from the source policy literal instead of tying the patch to a class name.
+    # from the source policy literal and initializer instead of tying the
+    # patch to a class name that may still exist for another feature.
     SSRM_FEATURE_ROOT="$APKTOOL_DIR/system/priv-app/SamsungDeviceHealthManagerService/SamsungDeviceHealthManagerService.apk"
-    if [ ! -f "$SSRM_FEATURE_ROOT/$SSRM_FEATURE_SMALI" ]; then
-        SSRM_FEATURE_MATCHES="$(grep -RFl --include='*.smali' \
-            "$SSRM_JAR_FEATURE_LITERAL" "$SSRM_FEATURE_ROOT" || true)"
-        if [ "$(printf '%s\n' "$SSRM_FEATURE_MATCHES" | sed '/^$/d' | wc -l)" -ne 1 ]; then
-            _LOG "Unable to uniquely locate the SDHMS SSRM feature class"
-        else
-            SSRM_FEATURE_SMALI="${SSRM_FEATURE_MATCHES#"$SSRM_FEATURE_ROOT/"}"
-            LOG "- Resolved SDHMS SSRM feature class: $SSRM_FEATURE_SMALI"
-        fi
-    fi
+    SSRM_FEATURE_SMALI="$(RESOLVE_SMALI_PATH "$SSRM_FEATURE_ROOT" "$SSRM_FEATURE_SMALI" \
+        "<clinit>()V" "$SOURCE_DVFSAPP_CONFIG_SSRM_POLICY_FILENAME" \
+        "$TARGET_DVFSAPP_CONFIG_SSRM_POLICY_FILENAME")" || return 1
+    LOG "- Resolved SDHMS SSRM feature class: $SSRM_FEATURE_SMALI"
 
     if [[ "$SOURCE_DVFSAPP_CONFIG_SSRM_POLICY_FILENAME" != "ssrm_default" ]] && \
             [[ "$TARGET_DVFSAPP_CONFIG_SSRM_POLICY_FILENAME" == "ssrm_default" ]]; then
