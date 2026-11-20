@@ -7,10 +7,10 @@ Legacy Exynos 990 devices have no satellite radio. Android 17 nevertheless
 queries carrier NTN configuration after ordinary cellular updates, repeatedly
 parsing a configuration that can never exist and flooding telephony logs.
 Return the terrestrial defaults before those configuration lookups.
----
+diff --git a/smali/com/android/internal/telephony/satellite/SatelliteController.smali b/smali/com/android/internal/telephony/satellite/SatelliteController.smali
 --- a/smali/com/android/internal/telephony/satellite/SatelliteController.smali
 +++ b/smali/com/android/internal/telephony/satellite/SatelliteController.smali
-@@ -14055,28 +14055,15 @@
+@@ -14397,28 +14397,15 @@
  .end method
  
  .method private blacklist isSatelliteAttachSupportedViaConfigupdater(I)Ljava/lang/Boolean;
@@ -27,28 +27,24 @@ Return the terrestrial defaults before those configuration lookups.
 -    invoke-static {p0}, Lcom/android/internal/telephony/satellite/SatelliteController;->logd(Ljava/lang/String;)V
 -
 -    const/4 p0, 0x0
--
++    .locals 1
+ 
 -    return-object p0
--
++    const/4 v0, 0x0
+ 
 -    :cond_0
 -    invoke-virtual {p0, p1}, Lcom/android/internal/telephony/satellite/SatelliteConfig;->isSatelliteAttachSupportedBySubId(I)Ljava/lang/Boolean;
--
--    move-result-object p0
--
--    return-object p0
-+    .locals 1
-+
-+    const/4 v0, 0x0
-+
 +    invoke-static {v0}, Ljava/lang/Boolean;->valueOf(Z)Ljava/lang/Boolean;
-+
+ 
+-    move-result-object p0
 +    move-result-object v0
-+
+ 
+-    return-object p0
 +    return-object v0
  .end method
  
  .method private blacklist isSatelliteDataServicesAllowed(ILjava/lang/String;)Z
-@@ -23743,127 +23730,11 @@
+@@ -24823,127 +24810,11 @@
  .end method
  
  .method public blacklist getCarrierRoamingNtnConnectType(I)I
@@ -169,17 +165,15 @@ Return the terrestrial defaults before those configuration lookups.
 -    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
 -
 -    move-result-object v0
--
--    invoke-direct {p0, v0}, Lcom/android/internal/telephony/satellite/SatelliteController;->plogd(Ljava/lang/String;)V
--
--    return p1
 +    .locals 1
-+
+ 
+-    invoke-direct {p0, v0}, Lcom/android/internal/telephony/satellite/SatelliteController;->plogd(Ljava/lang/String;)V
 +    const/4 v0, 0x0
-+
+ 
+-    return p1
 +    return v0
  .end method
  
- .method protected blacklist getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(I)I
+ .method public blacklist getCarrierRoamingNtnConnectTypeForPlmn(ILjava/lang/String;)I
 -- 
 2.51.0

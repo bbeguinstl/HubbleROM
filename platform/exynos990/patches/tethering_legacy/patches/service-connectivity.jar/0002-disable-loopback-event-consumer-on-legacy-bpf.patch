@@ -4,29 +4,24 @@ Date: Wed, 16 Sep 2026 22:35:00 -0300
 Subject: [PATCH] Disable loopback event consumer on legacy BPF kernels
 
 The Exynos 990 Linux 4.19 kernel does not expose the loopback-access BPF
-ring buffer. Skip its native consumer while leaving the rest of
-ConnectivityService initialization intact.
+ring buffer. Make the beta's dedicated dependency initializer a no-op while
+leaving the rest of ConnectivityService initialization intact.
 
 ---
- .../connectivity/com/android/server/ConnectivityService.smali | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ .../ConnectivityService$Dependencies.smali          | 2 --
+ 1 file changed, 2 deletions(-)
 
-diff --git a/smali/android/net/connectivity/com/android/server/ConnectivityService.smali b/smali/android/net/connectivity/com/android/server/ConnectivityService.smali
+diff --git a/smali/android/net/connectivity/com/android/server/ConnectivityService$Dependencies.smali b/smali/android/net/connectivity/com/android/server/ConnectivityService$Dependencies.smali
 index 0000000..0000000 100644
---- a/smali/android/net/connectivity/com/android/server/ConnectivityService.smali
-+++ b/smali/android/net/connectivity/com/android/server/ConnectivityService.smali
-@@ -40862,11 +40862,9 @@
-     invoke-virtual {v3}, Landroid/net/connectivity/com/android/server/BpfNetMaps;->isLoopbackAccessMetricsEnabled()Z
- 
-     move-result v3
- 
--    if-eqz v3, :cond_9
-+    goto :cond_9
+--- a/smali/android/net/connectivity/com/android/server/ConnectivityService$Dependencies.smali
++++ b/smali/android/net/connectivity/com/android/server/ConnectivityService$Dependencies.smali
+@@ -517,7 +517,5 @@
+ .method public initLoopbackEventConsumer()V
+     .locals 0
  
 -    invoke-static {}, Landroid/net/connectivity/com/android/server/connectivity/BpfEventPoller;->nativeInitLoopbackEventConsumer()V
 -
-     :cond_9
-     iget-object v3, p0, Landroid/net/connectivity/com/android/server/ConnectivityService;->mLocalNetEventListener:Landroid/net/connectivity/com/android/server/connectivity/LocalNetEventListener;
- 
+     return-void
+ .end method
 -- 
 2.43.0

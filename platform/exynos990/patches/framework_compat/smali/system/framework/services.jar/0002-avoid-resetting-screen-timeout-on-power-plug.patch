@@ -32,10 +32,10 @@ index 000000000..000000000 100644
 +    move p1, v2
 
      iget-object v3, p0, Lcom/android/server/power/PowerManagerService;->mBatteryManagerInternal:Landroid/os/BatteryManagerInternal;
-@@ -20272,2 +20272,6 @@
-     :goto_6
+@@ -19741,2 +19741,6 @@
+     :goto_5
 +    iget v4, p0, Lcom/android/server/power/PowerManagerService;->mPlugType:I
 +    const/4 v6, 0x2
-+    if-eq v4, v6, :cond_15
-+    if-eq p1, v6, :cond_15
++    if-eq v4, v6, :cond_13
++    if-eq p1, v6, :cond_13
      iget-object v1, p0, Lcom/android/server/power/PowerManagerService;->mPowerGroups:Landroid/util/SparseArray;

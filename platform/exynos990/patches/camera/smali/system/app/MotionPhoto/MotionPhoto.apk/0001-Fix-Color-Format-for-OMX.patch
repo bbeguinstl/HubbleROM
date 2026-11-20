@@ -23,13 +23,13 @@ Relevant logs:
 
 Signed-off-by: ExtremeXT <75576145+ExtremeXT@users.noreply.github.com>
 ---
- smali/com/samsung/android/sum/core/filter/EncoderFilter.smali | 2 +-
+ smali/com/samsung/vcore/sum/core/filter/EncoderFilter.smali | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/smali/com/samsung/android/sum/core/filter/EncoderFilter.smali b/smali/com/samsung/android/sum/core/filter/EncoderFilter.smali
+diff --git a/smali/com/samsung/vcore/sum/core/filter/EncoderFilter.smali b/smali/com/samsung/vcore/sum/core/filter/EncoderFilter.smali
 index d28633f..dc46749 100644
---- a/smali/com/samsung/android/sum/core/filter/EncoderFilter.smali
-+++ b/smali/com/samsung/android/sum/core/filter/EncoderFilter.smali
+--- a/smali/com/samsung/vcore/sum/core/filter/EncoderFilter.smali
++++ b/smali/com/samsung/vcore/sum/core/filter/EncoderFilter.smali
 @@ -1885,7 +1885,7 @@
      invoke-virtual {v2, v5, v4}, Landroid/media/MediaFormat;->setInteger(Ljava/lang/String;I)V
 

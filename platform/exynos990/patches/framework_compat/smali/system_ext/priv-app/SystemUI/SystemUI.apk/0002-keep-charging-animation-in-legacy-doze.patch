@@ -20,9 +20,9 @@ DOZE_AOD path, matching the legacy device behavior.
  .../power/feature/aod/AodTriggerController.smali            |  2 +-
  3 files changed, 43 insertions(+), 2 deletions(-)
 
-diff --git a/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerController.smali b/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerController.smali
---- a/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerController.smali
-+++ b/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerController.smali
+diff --git a/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerController.smali b/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerController.smali
+--- a/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerController.smali
++++ b/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerController.smali
 @@ -286,7 +286,7 @@
 
      const/16 v6, 0x1194
@@ -32,15 +32,15 @@ diff --git a/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerCon
 
      goto :goto_1
 
-diff --git a/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl.smali b/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl.smali
---- a/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl.smali
-+++ b/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl.smali
+diff --git a/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl.smali b/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl.smali
+--- a/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl.smali
++++ b/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl.smali
 @@ -201,7 +201,15 @@
 
      check-cast p0, Lcom/android/systemui/doze/PluginAODManager;
 
 -    invoke-virtual {p0, v3}, Lcom/android/systemui/doze/PluginAODManager;->chargingAnimStarted(Z)V
-+    iget-object v0, p0, Lcom/android/systemui/doze/PluginAODManager;->mHandler:Lcom/android/systemui/doze/PluginAODManager$10;
++    iget-object v0, p0, Lcom/android/systemui/doze/PluginAODManager;->mHandler:Lcom/android/systemui/doze/PluginAODManager$11;
 +
 +    new-instance v1, Lcom/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl$$ExternalSyntheticLambda0;
 +
@@ -52,10 +52,10 @@ diff --git a/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerExe
 
      sget-object p0, Lkotlin/Unit;->INSTANCE:Lkotlin/Unit;
      :try_end_3
-diff --git a/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl$$ExternalSyntheticLambda0.smali b/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl$$ExternalSyntheticLambda0.smali
+diff --git a/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl$$ExternalSyntheticLambda0.smali b/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl$$ExternalSyntheticLambda0.smali
 new file mode 100644
 --- /dev/null
-+++ b/smali_classes2/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl$$ExternalSyntheticLambda0.smali
++++ b/smali_classes3/com/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl$$ExternalSyntheticLambda0.smali
 @@ -0,0 +1,33 @@
 +.class public final synthetic Lcom/android/systemui/power/feature/aod/AodTriggerExecutor$DozeChargingSessionImpl$$ExternalSyntheticLambda0;
 +.super Ljava/lang/Object;

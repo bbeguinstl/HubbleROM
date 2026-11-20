@@ -14,85 +14,93 @@ audio/graphics interfaces that are intentionally absent on this target.
  2 files changed, 16 insertions(+), 39 deletions(-)
 
 diff --git a/smali/com/android/server/Watchdog.smali b/smali/com/android/server/Watchdog.smali
-index 923058f1e..15a6f53aa 100644
 --- a/smali/com/android/server/Watchdog.smali
 +++ b/smali/com/android/server/Watchdog.smali
-@@ -304,56 +304,50 @@
-     const-string/jumbo v26, "android.system.suspend.ISystemSuspend/"
+@@ -281,63 +281,53 @@
  
-     const-string/jumbo v27, "android.hardware.thermal.IThermal/"
+     sput-object v0, Lcom/android/server/Watchdog;->QC_HAL_INTERFACES_OF_INTEREST:Ljava/util/List;
  
--    const-string/jumbo v2, "android.hardware.audio.core.IModule/"
-+    const-string/jumbo v2, "android.system.suspend.ISystemSuspend/"
+-    const-string/jumbo v27, "android.system.suspend.ISystemSuspend/"
++    const-string/jumbo v1, "android.hardware.biometrics.face.IFace/"
  
--    const-string/jumbo v3, "android.hardware.audio.core.IConfig/"
-+    const-string/jumbo v3, "android.hardware.thermal.IThermal/"
+-    const-string/jumbo v28, "android.hardware.thermal.IThermal/"
++    const-string/jumbo v2, "android.hardware.biometrics.fingerprint.IFingerprint/"
  
--    const-string/jumbo v4, "android.hardware.audio.effect.IFactory/"
-+    const-string/jumbo v4, "android.hardware.biometrics.face.IFace/"
+-    const-string/jumbo v1, "android.hardware.audio.core.IModule/"
++    const-string/jumbo v3, "android.hardware.bluetooth.IBluetoothHci/"
  
--    const-string/jumbo v5, "android.hardware.biometrics.face.IFace/"
-+    const-string/jumbo v5, "android.hardware.biometrics.fingerprint.IFingerprint/"
+-    const-string/jumbo v2, "android.hardware.audio.core.IConfig/"
++    const-string/jumbo v4, "android.hardware.camera.provider.ICameraProvider/"
  
--    const-string/jumbo v6, "android.hardware.biometrics.fingerprint.IFingerprint/"
-+    const-string/jumbo v6, "android.hardware.bluetooth.IBluetoothHci/"
+-    const-string/jumbo v3, "android.hardware.audio.effect.IFactory/"
++    const-string/jumbo v5, "android.hardware.contexthub.IContextHub/"
  
--    const-string/jumbo v7, "android.hardware.bluetooth.IBluetoothHci/"
-+    const-string/jumbo v7, "android.hardware.camera.provider.ICameraProvider/"
+-    const-string/jumbo v4, "android.hardware.biometrics.face.IFace/"
++    const-string/jumbo v6, "vendor.samsung.hardware.contexthub.IContextHub/"
  
--    const-string/jumbo v8, "android.hardware.camera.provider.ICameraProvider/"
-+    const-string/jumbo v8, "android.hardware.drm.IDrmFactory/"
+-    const-string/jumbo v5, "android.hardware.biometrics.fingerprint.IFingerprint/"
++    const-string/jumbo v7, "android.hardware.drm.IDrmFactory/"
  
--    const-string/jumbo v9, "android.hardware.drm.IDrmFactory/"
-+    const-string/jumbo v9, "android.hardware.gnss.IGnss/"
+-    const-string/jumbo v6, "android.hardware.bluetooth.IBluetoothHci/"
++    const-string/jumbo v8, "android.hardware.gnss.IGnss/"
  
--    const-string/jumbo v10, "android.hardware.gnss.IGnss/"
-+    const-string/jumbo v10, "android.hardware.health.IHealth/"
+-    const-string/jumbo v7, "android.hardware.camera.provider.ICameraProvider/"
++    const-string/jumbo v9, "android.hardware.health.IHealth/"
  
--    const-string/jumbo v11, "android.hardware.graphics.allocator.IAllocator/"
-+    const-string/jumbo v11, "android.hardware.input.processor.IInputProcessor/"
+-    const-string/jumbo v8, "android.hardware.contexthub.IContextHub/"
++    const-string/jumbo v10, "android.hardware.input.processor.IInputProcessor/"
  
--    const-string/jumbo v12, "android.hardware.graphics.composer3.IComposer/"
-+    const-string/jumbo v12, "android.hardware.light.ILights/"
+-    const-string/jumbo v9, "vendor.samsung.hardware.contexthub.IContextHub/"
++    const-string/jumbo v11, "android.hardware.light.ILights/"
  
--    const-string/jumbo v13, "android.hardware.health.IHealth/"
-+    const-string/jumbo v13, "android.hardware.media.c2.IComponentStore/"
+-    const-string/jumbo v10, "android.hardware.drm.IDrmFactory/"
++    const-string/jumbo v12, "android.hardware.media.c2.IComponentStore/"
  
--    const-string/jumbo v14, "android.hardware.input.processor.IInputProcessor/"
-+    const-string/jumbo v14, "android.hardware.neuralnetworks.IDevice/"
+-    const-string/jumbo v11, "android.hardware.gnss.IGnss/"
++    const-string/jumbo v13, "android.hardware.neuralnetworks.IDevice/"
  
--    const-string/jumbo v15, "android.hardware.light.ILights/"
-+    const-string/jumbo v15, "android.hardware.power.IPower/"
+-    const-string/jumbo v12, "android.hardware.graphics.allocator.IAllocator/"
++    const-string/jumbo v14, "android.hardware.power.IPower/"
  
--    const-string/jumbo v16, "android.hardware.media.c2.IComponentStore/"
-+    const-string/jumbo v16, "android.hardware.power.stats.IPowerStats/"
+-    const-string/jumbo v13, "android.hardware.graphics.composer3.IComposer/"
++    const-string/jumbo v15, "android.hardware.power.stats.IPowerStats/"
  
--    const-string/jumbo v17, "android.hardware.neuralnetworks.IDevice/"
-+    const-string/jumbo v17, "android.hardware.sensors.ISensors/"
+-    const-string/jumbo v14, "android.hardware.health.IHealth/"
++    const-string/jumbo v16, "android.hardware.sensors.ISensors/"
  
--    const-string/jumbo v18, "android.hardware.power.IPower/"
-+    const-string/jumbo v18, "android.hardware.vibrator.IVibrator/"
+-    const-string/jumbo v15, "android.hardware.input.processor.IInputProcessor/"
++    const-string/jumbo v17, "android.hardware.vibrator.IVibrator/"
  
--    const-string/jumbo v19, "android.hardware.power.stats.IPowerStats/"
-+    const-string/jumbo v19, "android.hardware.vibrator.IVibratorManager/"
+-    const-string/jumbo v16, "android.hardware.light.ILights/"
++    const-string/jumbo v18, "android.hardware.vibrator.IVibratorManager/"
  
--    const-string/jumbo v20, "android.hardware.sensors.ISensors/"
-+    const-string/jumbo v20, "android.hardware.wifi.hostapd.IHostapd/"
+-    const-string/jumbo v17, "android.hardware.media.c2.IComponentStore/"
++    const-string/jumbo v19, "android.hardware.wifi.hostapd.IHostapd/"
  
--    const-string/jumbo v21, "android.hardware.vibrator.IVibrator/"
-+    const-string/jumbo v21, "android.hardware.wifi.IWifi/"
+-    const-string/jumbo v18, "android.hardware.neuralnetworks.IDevice/"
++    const-string/jumbo v20, "android.hardware.wifi.IWifi/"
  
--    const-string/jumbo v22, "android.hardware.vibrator.IVibratorManager/"
-+    const-string/jumbo v22, "android.hardware.wifi.supplicant.ISupplicant/"
+-    const-string/jumbo v19, "android.hardware.power.IPower/"
++    const-string/jumbo v21, "android.hardware.wifi.supplicant.ISupplicant/"
  
--    const-string/jumbo v23, "android.hardware.wifi.hostapd.IHostapd/"
+-    const-string/jumbo v20, "android.hardware.power.stats.IPowerStats/"
++    const-string/jumbo v22, "android.system.suspend.ISystemSuspend/"
+ 
+-    const-string/jumbo v21, "android.hardware.sensors.ISensors/"
++    const-string/jumbo v23, "android.hardware.thermal.IThermal/"
+ 
+-    const-string/jumbo v22, "android.hardware.vibrator.IVibrator/"
 -
--    const-string/jumbo v24, "android.hardware.wifi.IWifi/"
+-    const-string/jumbo v23, "android.hardware.vibrator.IVibratorManager/"
 -
--    const-string/jumbo v25, "android.hardware.wifi.supplicant.ISupplicant/"
+-    const-string/jumbo v24, "android.hardware.wifi.hostapd.IHostapd/"
 -
--    filled-new-array/range {v2 .. v27}, [Ljava/lang/String;
-+    filled-new-array/range {v2 .. v22}, [Ljava/lang/String;
+-    const-string/jumbo v25, "android.hardware.wifi.IWifi/"
+-
+-    const-string/jumbo v26, "android.hardware.wifi.supplicant.ISupplicant/"
+-
+-    filled-new-array/range {v1 .. v28}, [Ljava/lang/String;
++    filled-new-array/range {v1 .. v23}, [Ljava/lang/String;
  
      move-result-object v0
  

@@ -188,6 +188,42 @@ INSTALL_COMPOSER3()
             SYSTEM_LIB_DIR="$CANDIDATE"
             break
         fi
+
+        # Some Android 17 donor builds ship the newer V6 client runtime while
+        # their active compatibility matrix still accepts a V5 Composer3 HAL.
+        # The bridge packages its pinned V5 runtime in vendor/ (checked above),
+        # so accept that layout when VINTF explicitly permits HAL version 5.
+        if [ -f "$CANDIDATE/android.hardware.graphics.composer3-V6-ndk.so" ] && \
+           [ -f "$CANDIDATE/libbinder_ndk.so" ] && \
+           python3 - "$WORK_DIR/system/system/etc/vintf" <<'PY'
+import glob
+import sys
+import xml.etree.ElementTree as ET
+
+for path in glob.glob(sys.argv[1] + "/compatibility_matrix*.xml"):
+    try:
+        root = ET.parse(path).getroot()
+    except (ET.ParseError, OSError):
+        continue
+    for hal in root.findall(".//hal"):
+        if hal.findtext("name") != "android.hardware.graphics.composer3":
+            continue
+        for node in hal.findall("version"):
+            value = (node.text or "").strip()
+            try:
+                bounds = [int(part) for part in value.split("-", 1)]
+            except ValueError:
+                continue
+            if len(bounds) == 1 and bounds[0] == 5:
+                raise SystemExit(0)
+            if len(bounds) == 2 and bounds[0] <= 5 <= bounds[1]:
+                raise SystemExit(0)
+raise SystemExit(1)
+PY
+        then
+            SYSTEM_LIB_DIR="$CANDIDATE"
+            break
+        fi
     done
     [ -n "$SYSTEM_LIB_DIR" ] || {
         ABORT "Target system lacks the Composer3 AIDL V5 runtime"

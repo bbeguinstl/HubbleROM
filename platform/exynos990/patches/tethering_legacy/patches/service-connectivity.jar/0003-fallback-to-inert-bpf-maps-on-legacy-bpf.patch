@@ -3,42 +3,16 @@ From: At30c <173511395+At30c@users.noreply.github.com>
 Date: Fri, 2 Oct 2026 21:05:00 -0300
 Subject: [PATCH] Fall back to inert BPF maps on legacy kernels
 
-The Linux 4.14 kernel cannot enumerate several of the
-/sys/fs/bpf/netd_shared/ maps that BpfNetMaps opens lazily, so
-BpfMap.getFirstKey() fails with an ErrnoException and every affected getter
-turns it into an IllegalStateException. Because NetworkStatsFactory builds
-BpfNetMaps from its own constructor, those unchecked exceptions escape to
-SystemServer and loop the device on every boot.
+Redirect every BpfNetMaps BPF-map open failure in the current connectivity
+service to an inert IBpfMap implementation. This keeps unsupported Linux
+4.19 kernels from turning optional map failures into SystemServer crashes.
 
-A capture from the installed build shows the failure walking one map at a
-time: getLocalNetAccessMap() was made non-fatal first, and the very next boot
-then aborted in getLocalNetUidHostAllowlistMap(). Patching a single map only
-moves the crash, because all seventeen getters in BpfNetMaps share the same
-shape and the same fatal catch handler, so this patches every one of them:
-on failure they log and hand back an inert object instead of throwing.
-
-Returning null is not an option, because initBpfMaps(),
-updateLocalNetAccessMap() and removeLocalNetAccess() dereference these fields
-without a null check. LegacyNoopBpfMap implements IBpfMap with no-op writes
-and an empty read side. BpfBoolean gains a constructor that accepts a map, so
-it can be backed by that same inert object, which makes get() report false and
-set()/clear() do nothing.
-
-Features backed by a map the kernel cannot open therefore degrade instead of
-fatal: local network access falls back to the default global policy, tethering
-keeps working through netd, and the device boots.
-
-Signed-off-by: At30c <173511395+At30c@users.noreply.github.com>
 ---
- .../connectivity/com/android/server/BpfNetMaps.smali      |  262 ++++-
- .../module/util/BpfBoolean.smali                           |    9 +++
- .../connectivity/com/android/server/LegacyNoopBpfMap.smali  |  122 +++++++++++++
- 3 files changed, 309 insertions(+), 85 deletions(-)
-
 diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali b/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali
+index 0000000..0000000 100644
 --- a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali
 +++ b/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali
-@@ -1780,11 +1780,15 @@
+@@ -1562,11 +1562,15 @@
      :catch_0
      move-exception v0
  
@@ -59,7 +33,7 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
  
      return-object v0
  .end method
-@@ -1810,11 +1814,15 @@
+@@ -1592,11 +1596,15 @@
      :catch_0
      move-exception v0
  
@@ -80,7 +54,7 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
  
      return-object v0
  .end method
-@@ -1840,11 +1848,15 @@
+@@ -1622,11 +1630,15 @@
      :catch_0
      move-exception v0
  
@@ -101,7 +75,7 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
  
      return-object v0
  .end method
-@@ -1870,11 +1882,15 @@
+@@ -1652,11 +1664,15 @@
      :catch_0
      move-exception v0
  
@@ -122,7 +96,7 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
  
      return-object v0
  .end method
-@@ -1898,11 +1914,19 @@
+@@ -1682,11 +1698,15 @@
      :catch_0
      move-exception v0
  
@@ -137,17 +111,13 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
 +
 +    invoke-static {v1, v2, v0}, Landroid/util/Log;->w(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
 +
-+    new-instance v0, Landroid/net/connectivity/com/android/net/module/util/BpfBoolean;
++    new-instance v0, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;
 +
-+    new-instance v1, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;
-+
-+    invoke-direct {v1}, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;-><init>()V
-+
-+    invoke-direct {v0, v1}, Landroid/net/connectivity/com/android/net/module/util/BpfBoolean;-><init>(Landroid/net/connectivity/com/android/net/module/util/IBpfMap;)V
++    invoke-direct {v0}, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;-><init>()V
  
      return-object v0
  .end method
-@@ -1928,11 +1952,15 @@
+@@ -1712,11 +1732,15 @@
      :catch_0
      move-exception v0
  
@@ -168,28 +138,7 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
  
      return-object v0
  .end method
-@@ -1958,11 +1986,15 @@
-     :catch_0
-     move-exception v0
- 
--    const-string v1, "Cannot open local_net_blocked_uid map"
--
--    invoke-static {v1, v0}, Lcom/android/server/thread/TunInterfaceController$$ExternalSyntheticBUOutline0;->m(Ljava/lang/String;Ljava/lang/Throwable;)V
--
--    const/4 v0, 0x0
-+    const-string v1, "BpfNetMaps"
-+
-+    const-string v2, "Cannot open local_net_blocked_uid map, using a no-op map"
-+
-+    invoke-static {v1, v2, v0}, Landroid/util/Log;->w(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
-+
-+    new-instance v0, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;
-+
-+    invoke-direct {v0}, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;-><init>()V
- 
-     return-object v0
- .end method
-@@ -1988,11 +2020,15 @@
+@@ -1742,11 +1766,15 @@
      :catch_0
      move-exception v0
  
@@ -210,32 +159,7 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
  
      return-object v0
  .end method
-@@ -2016,11 +2052,19 @@
-     :catch_0
-     move-exception v0
- 
--    const-string v1, "Cannot open LNP note op enabled map"
--
--    invoke-static {v1, v0}, Lcom/android/server/thread/TunInterfaceController$$ExternalSyntheticBUOutline0;->m(Ljava/lang/String;Ljava/lang/Throwable;)V
--
--    const/4 v0, 0x0
-+    const-string v1, "BpfNetMaps"
-+
-+    const-string v2, "Cannot open LNP note op enabled map, using a no-op map"
-+
-+    invoke-static {v1, v2, v0}, Landroid/util/Log;->w(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
-+
-+    new-instance v0, Landroid/net/connectivity/com/android/net/module/util/BpfBoolean;
-+
-+    new-instance v1, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;
-+
-+    invoke-direct {v1}, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;-><init>()V
-+
-+    invoke-direct {v0, v1}, Landroid/net/connectivity/com/android/net/module/util/BpfBoolean;-><init>(Landroid/net/connectivity/com/android/net/module/util/IBpfMap;)V
- 
-     return-object v0
- .end method
-@@ -2046,11 +2090,15 @@
+@@ -1772,11 +1800,15 @@
      :catch_0
      move-exception v0
  
@@ -256,18 +180,18 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
  
      return-object v0
  .end method
-@@ -2074,11 +2122,19 @@
+@@ -1800,11 +1832,19 @@
      :catch_0
      move-exception v0
  
--    const-string v1, "Cannot open loopback access metrics enabled map"
+-    const-string v1, "Cannot open loopback permission enabled map"
 -
 -    invoke-static {v1, v0}, Lcom/android/server/thread/TunInterfaceController$$ExternalSyntheticBUOutline0;->m(Ljava/lang/String;Ljava/lang/Throwable;)V
 -
 -    const/4 v0, 0x0
 +    const-string v1, "BpfNetMaps"
 +
-+    const-string v2, "Cannot open loopback access metrics enabled map, using a no-op map"
++    const-string v2, "Cannot open loopback permission enabled map, using a no-op map"
 +
 +    invoke-static {v1, v2, v0}, Landroid/util/Log;->w(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
 +
@@ -281,82 +205,7 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
  
      return-object v0
  .end method
-@@ -2102,11 +2158,19 @@
-     :catch_0
-     move-exception v0
- 
--    const-string v1, "Cannot open loopback checks enabled map"
--
--    invoke-static {v1, v0}, Lcom/android/server/thread/TunInterfaceController$$ExternalSyntheticBUOutline0;->m(Ljava/lang/String;Ljava/lang/Throwable;)V
--
--    const/4 v0, 0x0
-+    const-string v1, "BpfNetMaps"
-+
-+    const-string v2, "Cannot open loopback checks enabled map, using a no-op map"
-+
-+    invoke-static {v1, v2, v0}, Landroid/util/Log;->w(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
-+
-+    new-instance v0, Landroid/net/connectivity/com/android/net/module/util/BpfBoolean;
-+
-+    new-instance v1, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;
-+
-+    invoke-direct {v1}, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;-><init>()V
-+
-+    invoke-direct {v0, v1}, Landroid/net/connectivity/com/android/net/module/util/BpfBoolean;-><init>(Landroid/net/connectivity/com/android/net/module/util/IBpfMap;)V
- 
-     return-object v0
- .end method
-@@ -2150,11 +2214,19 @@
-     :catch_0
-     move-exception v0
- 
--    const-string v1, "Cannot open permission propagation enabled map"
--
--    invoke-static {v1, v0}, Lcom/android/server/thread/TunInterfaceController$$ExternalSyntheticBUOutline0;->m(Ljava/lang/String;Ljava/lang/Throwable;)V
--
--    const/4 v0, 0x0
-+    const-string v1, "BpfNetMaps"
-+
-+    const-string v2, "Cannot open permission propagation enabled map, using a no-op map"
-+
-+    invoke-static {v1, v2, v0}, Landroid/util/Log;->w(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
-+
-+    new-instance v0, Landroid/net/connectivity/com/android/net/module/util/BpfBoolean;
-+
-+    new-instance v1, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;
-+
-+    invoke-direct {v1}, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;-><init>()V
-+
-+    invoke-direct {v0, v1}, Landroid/net/connectivity/com/android/net/module/util/BpfBoolean;-><init>(Landroid/net/connectivity/com/android/net/module/util/IBpfMap;)V
- 
-     return-object v0
- .end method
-@@ -2178,11 +2250,19 @@
-     :catch_0
-     move-exception v0
- 
--    const-string v1, "Cannot open uid migration enabled map"
--
--    invoke-static {v1, v0}, Lcom/android/server/thread/TunInterfaceController$$ExternalSyntheticBUOutline0;->m(Ljava/lang/String;Ljava/lang/Throwable;)V
--
--    const/4 v0, 0x0
-+    const-string v1, "BpfNetMaps"
-+
-+    const-string v2, "Cannot open uid migration enabled map, using a no-op map"
-+
-+    invoke-static {v1, v2, v0}, Landroid/util/Log;->w(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
-+
-+    new-instance v0, Landroid/net/connectivity/com/android/net/module/util/BpfBoolean;
-+
-+    new-instance v1, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;
-+
-+    invoke-direct {v1}, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;-><init>()V
-+
-+    invoke-direct {v0, v1}, Landroid/net/connectivity/com/android/net/module/util/BpfBoolean;-><init>(Landroid/net/connectivity/com/android/net/module/util/IBpfMap;)V
- 
-     return-object v0
- .end method
-@@ -2208,11 +2288,15 @@
+@@ -1850,11 +1890,15 @@
      :catch_0
      move-exception v0
  
@@ -377,7 +226,7 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
  
      return-object v0
  .end method
-@@ -2238,11 +2322,15 @@
+@@ -1880,11 +1924,15 @@
      :catch_0
      move-exception v0
  
@@ -398,34 +247,14 @@ diff --git a/smali/android/net/connectivity/com/android/server/BpfNetMaps.smali 
  
      return-object v0
  .end method
-@@ -2268,11 +2356,15 @@
-     :catch_0
-     move-exception v0
- 
--    const-string v1, "Cannot open uid permission map"
--
--    invoke-static {v1, v0}, Lcom/android/server/thread/TunInterfaceController$$ExternalSyntheticBUOutline0;->m(Ljava/lang/String;Ljava/lang/Throwable;)V
--
--    const/4 v0, 0x0
-+    const-string v1, "BpfNetMaps"
-+
-+    const-string v2, "Cannot open uid permission map, using a no-op map"
-+
-+    invoke-static {v1, v2, v0}, Landroid/util/Log;->w(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
-+
-+    new-instance v0, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;
-+
-+    invoke-direct {v0}, Landroid/net/connectivity/com/android/server/LegacyNoopBpfMap;-><init>()V
- 
-     return-object v0
- .end method
 diff --git a/smali/android/net/connectivity/com/android/net/module/util/BpfBoolean.smali b/smali/android/net/connectivity/com/android/net/module/util/BpfBoolean.smali
+index 0000000..0000000 100644
 --- a/smali/android/net/connectivity/com/android/net/module/util/BpfBoolean.smali
 +++ b/smali/android/net/connectivity/com/android/net/module/util/BpfBoolean.smali
-@@ -81,6 +81,16 @@
+@@ -80,6 +80,16 @@
+ .end method
  
  
- # virtual methods
 +.method public constructor <init>(Landroid/net/connectivity/com/android/net/module/util/IBpfMap;)V
 +    .locals 0
 +
@@ -436,9 +265,9 @@ diff --git a/smali/android/net/connectivity/com/android/net/module/util/BpfBoole
 +    return-void
 +.end method
 +
- .method public clear()V
+ # virtual methods
+ .method public get()Z
      .locals 1
- 
 diff --git a/smali/android/net/connectivity/com/android/server/LegacyNoopBpfMap.smali b/smali/android/net/connectivity/com/android/server/LegacyNoopBpfMap.smali
 new file mode 100644
 --- /dev/null
@@ -456,9 +285,9 @@ new file mode 100644
 +.annotation system Ldalvik/annotation/Signature;
 +    value = {
 +        "<K:",
-+        "Landroid/net/connectivity/com/android/net/module/util/Struct;",
++        "Landroid/net/connectivity/com/android/net/module/util/IBlob;",
 +        "V:",
-+        "Landroid/net/connectivity/com/android/net/module/util/Struct;",
++        "Landroid/net/connectivity/com/android/net/module/util/IBlob;",
 +        ">;"
 +    }
 +.end annotation
@@ -487,7 +316,7 @@ new file mode 100644
 +    return-void
 +.end method
 +
-+.method public containsKey(Landroid/net/connectivity/com/android/net/module/util/Struct;)Z
++.method public containsKey(Landroid/net/connectivity/com/android/net/module/util/IBlob;)Z
 +    .locals 1
 +
 +    const/4 v0, 0x0
@@ -495,7 +324,7 @@ new file mode 100644
 +    return v0
 +.end method
 +
-+.method public deleteEntry(Landroid/net/connectivity/com/android/net/module/util/Struct;)Z
++.method public deleteEntry(Landroid/net/connectivity/com/android/net/module/util/IBlob;)Z
 +    .locals 1
 +
 +    const/4 v0, 0x0
@@ -509,7 +338,7 @@ new file mode 100644
 +    return-void
 +.end method
 +
-+.method public getFirstKey()Landroid/net/connectivity/com/android/net/module/util/Struct;
++.method public getFirstKey()Landroid/net/connectivity/com/android/net/module/util/IBlob;
 +    .locals 1
 +
 +    const/4 v0, 0x0
@@ -517,7 +346,7 @@ new file mode 100644
 +    return-object v0
 +.end method
 +
-+.method public getNextKey(Landroid/net/connectivity/com/android/net/module/util/Struct;)Landroid/net/connectivity/com/android/net/module/util/Struct;
++.method public getNextKey(Landroid/net/connectivity/com/android/net/module/util/IBlob;)Landroid/net/connectivity/com/android/net/module/util/IBlob;
 +    .locals 1
 +
 +    const/4 v0, 0x0
@@ -525,7 +354,7 @@ new file mode 100644
 +    return-object v0
 +.end method
 +
-+.method public getValue(Landroid/net/connectivity/com/android/net/module/util/Struct;)Landroid/net/connectivity/com/android/net/module/util/Struct;
++.method public getValue(Landroid/net/connectivity/com/android/net/module/util/IBlob;)Landroid/net/connectivity/com/android/net/module/util/IBlob;
 +    .locals 1
 +
 +    const/4 v0, 0x0
@@ -533,13 +362,13 @@ new file mode 100644
 +    return-object v0
 +.end method
 +
-+.method public insertEntry(Landroid/net/connectivity/com/android/net/module/util/Struct;Landroid/net/connectivity/com/android/net/module/util/Struct;)V
++.method public insertEntry(Landroid/net/connectivity/com/android/net/module/util/IBlob;Landroid/net/connectivity/com/android/net/module/util/IBlob;)V
 +    .locals 0
 +
 +    return-void
 +.end method
 +
-+.method public insertOrReplaceEntry(Landroid/net/connectivity/com/android/net/module/util/Struct;Landroid/net/connectivity/com/android/net/module/util/Struct;)Z
++.method public insertOrReplaceEntry(Landroid/net/connectivity/com/android/net/module/util/IBlob;Landroid/net/connectivity/com/android/net/module/util/IBlob;)Z
 +    .locals 1
 +
 +    const/4 v0, 0x0
@@ -555,14 +384,16 @@ new file mode 100644
 +    return v0
 +.end method
 +
-+.method public replaceEntry(Landroid/net/connectivity/com/android/net/module/util/Struct;Landroid/net/connectivity/com/android/net/module/util/Struct;)V
++.method public replaceEntry(Landroid/net/connectivity/com/android/net/module/util/IBlob;Landroid/net/connectivity/com/android/net/module/util/IBlob;)V
 +    .locals 0
 +
 +    return-void
 +.end method
 +
-+.method public updateEntry(Landroid/net/connectivity/com/android/net/module/util/Struct;Landroid/net/connectivity/com/android/net/module/util/Struct;)V
++.method public updateEntry(Landroid/net/connectivity/com/android/net/module/util/IBlob;Landroid/net/connectivity/com/android/net/module/util/IBlob;)V
 +    .locals 0
 +
 +    return-void
 +.end method
+-- 
+2.43.0

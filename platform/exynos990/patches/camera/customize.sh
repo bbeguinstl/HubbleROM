@@ -143,16 +143,32 @@ else
     # MediaCodecSource::suspendRecording(bool) remains a no-op, so start the
     # persistent encoder input active instead of asking that method to resume
     # it later.
-    HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
-        "140340f9e00315aa810240f91d2b0294e1f4ff9021d83c91e00314aa2200805206310294" \
-        "140340f9e00315aa810240f91d2b0294e1f4ff9021d83c91e00314aa0200805206310294"
+    SUSPEND_RECORDING_FROM="140340f9e00315aa810240f91d2b0294e1f4ff9021d83c91e00314aa2200805206310294"
+    SUSPEND_RECORDING_TO="140340f9e00315aa810240f91d2b0294e1f4ff9021d83c91e00314aa0200805206310294"
+    if xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$SUSPEND_RECORDING_FROM"; then
+        HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
+            "$SUSPEND_RECORDING_FROM" "$SUSPEND_RECORDING_TO"
+    else
+        LOGW "No matching suspend-recording call site in this Android 17 donor; leaving the donor implementation unchanged"
+    fi
 
     # The Android 17 setupVideoEncoder call site branches 16 instructions to
     # the normal continuation.  Force that branch when the legacy Exynos HEVC
     # OMX encoder reports temporal SVC as unsupported.
-    HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
-        "e10f40b9e28b40b9e00313aa11f7059400020034fa03002a" \
-        "e10f40b9e28b40b9e00313aa11f7059410000014fa03002a"
+    HDR10P_SVC_FROM="e10f40b9e28b40b9e00313aa11f7059400020034fa03002a"
+    HDR10P_SVC_TO="e10f40b9e28b40b9e00313aa11f7059410000014fa03002a"
+    HDR10P_SVC_BETA_FROM="e10f40b9e28b40b9e00313aa0cff059400020034fa03002a"
+    HDR10P_SVC_BETA_TO="e10f40b9e28b40b9e00313aa0cff059410000014fa03002a"
+    if xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_SVC_FROM"; then
+        HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
+            "$HDR10P_SVC_FROM" "$HDR10P_SVC_TO"
+    elif xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_SVC_BETA_FROM"; then
+        HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
+            "$HDR10P_SVC_BETA_FROM" "$HDR10P_SVC_BETA_TO"
+    elif ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_SVC_TO" && \
+         ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_SVC_BETA_TO"; then
+        ABORT "Missing Android 17 SVC fallback pattern"
+    fi
 
     # Android 17 asks for OMX_VIDEO_HEVCProfileMain10HDR10Plus (0x2000), but
     # the Exynos 990 Android 11 OMX component advertises Main, Main10 and
@@ -168,6 +184,7 @@ else
     # the normal setup path before x19 can be reused as the "ACodec" log tag.
     HDR10P_BRIDGE_FROM="48008052e8af00b9f3fbfff073da099182fbfff042143391c0008052e10313aa7cf20594e0fbffb0"
     HDR10P_BRIDGE_OLD="48008052e8af00b9cafdff1773da099182fbfff042143391c0008052e10313aa7cf20594e0fbffb0"
+    HDR10P_BRIDGE_BETA_FROM="48008052e8af00b913fcff9073363091a2fbff9042943e91c0008052e10313aa7dfa0594e0fbffd0"
     HDR10P_BRIDGE_TO="ccfdff17e8af00b9cafdff1773da0991a2035eb85f0840716100005402008252a2031eb87a110014"
     if xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_BRIDGE_FROM"; then
         HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
@@ -175,6 +192,9 @@ else
     elif xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_BRIDGE_OLD"; then
         HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
             "$HDR10P_BRIDGE_OLD" "$HDR10P_BRIDGE_TO"
+    elif xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_BRIDGE_BETA_FROM"; then
+        HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
+            "$HDR10P_BRIDGE_BETA_FROM" "$HDR10P_BRIDGE_TO"
     elif ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_BRIDGE_TO"; then
         ABORT "Missing Android 17 HDR10+ profile-bridge code-cave pattern"
     fi
@@ -201,7 +221,7 @@ else
         HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
             "$HDR10P_ASSERT_NOP" "$HDR10P_ASSERT_FROM"
     elif ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_ASSERT_FROM"; then
-        ABORT "Missing Android 17 HDR10+ assert restoration pattern"
+        LOG "No previous HDR10+ assert workaround found; keeping the beta implementation"
     fi
 
     HDR10P_CFI_RESTORE_PATTERNS="
@@ -226,7 +246,7 @@ e10a005468f242b9e1530091e2030091|1f2003d568f242b9e1530091e2030091
             HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
                 "$HDR10P_CFI_OLD" "$HDR10P_CFI_ORIGINAL"
         elif ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_CFI_ORIGINAL"; then
-            ABORT "Missing Android 17 ACodec CFI restoration pattern"
+            : # Fresh donor layout; no earlier CFI workaround to restore.
         fi
     done <<< "$HDR10P_CFI_RESTORE_PATTERNS"
 
@@ -236,9 +256,11 @@ e10a005468f242b9e1530091e2030091|1f2003d568f242b9e1530091e2030091
         HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
             "$HDR10P_PROCESS_CACHE_OLD" "$HDR10P_PROCESS_CACHE_FROM"
     elif ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_PROCESS_CACHE_FROM"; then
-        ABORT "Missing Android 17 ACodec process-cache restoration pattern"
+        LOG "No previous ACodec process-cache workaround found; keeping the beta implementation"
     fi
-    unset HDR10P_BRIDGE_FROM HDR10P_BRIDGE_OLD HDR10P_BRIDGE_TO \
+    unset SUSPEND_RECORDING_FROM SUSPEND_RECORDING_TO \
+        HDR10P_SVC_FROM HDR10P_SVC_TO HDR10P_SVC_BETA_FROM HDR10P_SVC_BETA_TO \
+        HDR10P_BRIDGE_FROM HDR10P_BRIDGE_OLD HDR10P_BRIDGE_BETA_FROM HDR10P_BRIDGE_TO \
         HDR10P_PROFILE_FROM HDR10P_PROFILE_TO \
         HDR10P_ASSERT_FROM HDR10P_ASSERT_NOP HDR10P_ASSERT_OLD \
         HDR10P_CFI_RESTORE_PATTERNS HDR10P_CFI_ORIGINAL HDR10P_CFI_OLD \

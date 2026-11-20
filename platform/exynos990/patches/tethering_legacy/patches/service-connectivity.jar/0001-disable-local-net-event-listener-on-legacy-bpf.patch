@@ -8,24 +8,23 @@ used by LocalNetEventListener. Returning null leaves the listener disabled;
 ConnectivityService already treats this dependency as optional.
 
 ---
- .../ConnectivityService$Dependencies.smali          | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ .../ConnectivityService$Dependencies.smali          | 5 +---
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
 diff --git a/smali/android/net/connectivity/com/android/server/ConnectivityService$Dependencies.smali b/smali/android/net/connectivity/com/android/server/ConnectivityService$Dependencies.smali
 index 0000000..0000000 100644
 --- a/smali/android/net/connectivity/com/android/server/ConnectivityService$Dependencies.smali
 +++ b/smali/android/net/connectivity/com/android/server/ConnectivityService$Dependencies.smali
-@@ -462,11 +462,10 @@
- .method public getLocalNetEventListener(Landroid/content/pm/PackageManager;Landroid/app/AppOpsManager;Landroid/os/Looper;ZZ)Landroid/net/connectivity/com/android/server/connectivity/LocalNetEventListener;
+@@ -452,11 +452,8 @@
+ .method public getLocalNetEventListener(Landroid/content/pm/PackageManager;Landroid/app/AppOpsManager;Landroid/os/Looper;)Landroid/net/connectivity/com/android/server/connectivity/LocalNetEventListener;
      .locals 0
  
 -    new-instance p0, Landroid/net/connectivity/com/android/server/connectivity/LocalNetEventListener;
+-
+-    invoke-direct {p0, p1, p2, p3}, Landroid/net/connectivity/com/android/server/connectivity/LocalNetEventListener;-><init>(Landroid/content/pm/PackageManager;Landroid/app/AppOpsManager;Landroid/os/Looper;)V
+-
 +    const/4 p0, 0x0
- 
--    invoke-direct/range {p0 .. p5}, Landroid/net/connectivity/com/android/server/connectivity/LocalNetEventListener;-><init>(Landroid/content/pm/PackageManager;Landroid/app/AppOpsManager;Landroid/os/Looper;ZZ)V
-+    return-object p0
- 
--    return-object p0
+     return-object p0
  .end method
  
  .method public getNetworkInterfaces()Ljava/util/Enumeration;
