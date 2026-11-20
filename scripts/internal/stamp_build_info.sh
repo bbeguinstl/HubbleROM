@@ -36,12 +36,22 @@ if [ ! "$COMMIT" ]; then
 fi
 
 # Ignored build outputs (out/, .build/) do not count as changes.
-CHANGES="$(git -C "$SRC_DIR" status --porcelain 2> /dev/null)"
+if [[ "$TARGET_CODENAME" == "m21s" ]]; then
+    CHANGES="$(git -C "$SRC_DIR" status --porcelain 2> /dev/null)"
+else
+    # Unrelated modifications under another device target should not mark
+    # this ROM build as dirty or replace its current source commit in Settings.
+    CHANGES="$(git -C "$SRC_DIR" status --porcelain -- . ':(exclude)target/m21s' 2> /dev/null)"
+fi
 ROM_COMMIT="$COMMIT"
 [ "$CHANGES" ] && ROM_COMMIT+="-dirty"
 
 SET_PROP "system" "ro.unica.commit" "$ROM_COMMIT"
 ADD_PROPERTY_CONTEXT "ro.unica.commit"
+SET_PROP "system" "ro.unica.version" "$ROM_VERSION"
+ADD_PROPERTY_CONTEXT "ro.unica.version"
+SET_PROP "system" "ro.unica.codename" "$ROM_CODENAME"
+ADD_PROPERTY_CONTEXT "ro.unica.codename"
 
 # A reused work dir keeps the timestamp of the build that created it, so the
 # next incremental OTA was refused ("Target build is not newer than the
