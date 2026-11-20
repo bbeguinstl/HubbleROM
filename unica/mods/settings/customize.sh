@@ -162,6 +162,10 @@ if ! grep -q 'key="hubble_about_banner"' "$ABOUT_DEVICE_XML"; then
     sed -i '/<com.samsung.android.settings.widget.SecInsetCategoryPreference/i\    <com.android.settingslib.widget.LayoutPreference android:key="hubble_about_banner" android:layout="@layout/hubble_about_banner_layout" android:selectable="false" android:order="-10" />' \
         "$ABOUT_DEVICE_XML"
 fi
+if ! grep -q 'key="hubble_rom_version"' "$ABOUT_DEVICE_XML"; then
+    sed -i '/<com.samsung.android.settings.widget.SecInsetCategoryPreference/a\    <Preference android:key="hubble_rom_version" android:title="@string/unica_rom_version_title" android:summary="@string/summary_placeholder" android:order="25" settings:controller="io.mesalabs.unica.settings.ROMVersionPreferenceController" />' \
+        "$ABOUT_DEVICE_XML"
+fi
 unset ABOUT_DEVICE_XML
 
 # Add Hubble Settings SearchIndexableData registrations
