@@ -5,7 +5,8 @@
   <a href="https://github.com/bbeguinstl/HubbleROM/blob/seventeen/LICENSE"><img loading="lazy" src="https://img.shields.io/github/license/bbeguinstl/HubbleROM?style=for-the-badge&logo=github"/></a>
   <a href="https://github.com/bbeguinstl/HubbleROM/commits/seventeen"><img loading="lazy" src="https://img.shields.io/github/last-commit/bbeguinstl/HubbleROM/seventeen?style=for-the-badge"/></a>
   <a href="https://github.com/bbeguinstl/HubbleROM/stargazers"><img loading="lazy" src="https://img.shields.io/github/stars/bbeguinstl/HubbleROM?style=for-the-badge"/></a>
-  <a href="https://github.com/bbeguinstl/HubbleROM/actions"><img loading="lazy" src="https://img.shields.io/github/actions/workflow/status/bbeguinstl/HubbleROM/ci.yml?style=for-the-badge"/></a>
+  <a href="https://github.com/bbeguinstl/HubbleROM/actions/workflows/ci.yml"><img loading="lazy" alt="CI" src="https://img.shields.io/github/actions/workflow/status/bbeguinstl/HubbleROM/ci.yml?branch=seventeen&style=for-the-badge"/></a>
+  <a href="https://github.com/bbeguinstl/HubbleROM/actions/workflows/build.yml"><img loading="lazy" alt="ROM build" src="https://img.shields.io/github/actions/workflow/status/bbeguinstl/HubbleROM/build.yml?branch=seventeen&style=for-the-badge"/></a>
 </p>
 <p align="center">HubbleROM is a custom One UI 9.5 Beta 1 port for the Samsung Galaxy S20+ LTE (y2slte).</p>
 

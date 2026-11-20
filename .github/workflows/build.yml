@@ -11,12 +11,13 @@ on:
           - test
           - release
         default: debug
-    branches:
-      - 'sixteen'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -25,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [c2s, c1s, x1s, y2slte, y2s, z3s, r8s]
+        target: [y2slte]
 
     steps:
       - name: Checkout repo
@@ -126,11 +127,10 @@ jobs:
           source ./buildenv.sh ${{ matrix.target }}
           ./scripts/make_rom.sh
           
-      - name: Upload to Pixeldrain, GitHub Release, Split, XML
+      - name: Split the ROM and publish release assets
         if: github.event_name == 'workflow_dispatch'
         env:
-          PIXELDRAIN_API_KEY: ${{ secrets.PD_API }}
-          GH_TOKEN: ${{ secrets.PAT }}
+          GH_TOKEN: ${{ github.token }}
           RELEASE_REPO: ${{ github.repository }}
           BUILD_TYPE: ${{ github.event.inputs.build_type }}
         run: |
@@ -145,33 +145,36 @@ jobs:
             FILE_NAME=$(basename "$file")
             FILE_SIZE=$(stat -c%s "$file")
             FILE_MD5=$(md5sum "$file" | awk '{print $1}')
+            FILE_SHA256=$(sha256sum "$file" | awk '{print $1}')
             VERSION=$(echo "$FILE_NAME" | grep -oP '\d+\.\d+\.\d+')
+            BETA=$(echo "$FILE_NAME" | grep -oP 'beta\d+')
+            DEVICE=$(echo "$FILE_NAME" | sed -E 's/.*-([^-]+)_OFFICIAL\.zip/\1/')
             BUILD_DATE=$(date +%Y-%m-%d)
-
-            # Always upload to Pixeldrain
-            echo "Uploading $FILE_NAME to Pixeldrain..."
-            RESPONSE=$(curl -s -T "$file" -u :$PIXELDRAIN_API_KEY https://pixeldrain.com/api/file/)
-            FILE_ID=$(echo "$RESPONSE" | jq -r '.id')
-            PIXEL_URL="https://pixeldrain.com/u/$FILE_ID"
-            echo "Pixeldrain URL: $PIXEL_URL"
 
             # Split + GitHub Release for release + test
             PART_LINKS=()
             if [ "$BUILD_TYPE" = "release" ] || [ "$BUILD_TYPE" = "test" ]; then
-              echo "Splitting $FILE_NAME into 6 parts..."
+              echo "Splitting $FILE_NAME into six GitHub-safe parts..."
               cd split_tmp
               split -d -n 6 "../$file" "${FILE_NAME}.part_"
+              printf '%s  %s\n' "$FILE_SHA256" "$FILE_NAME" > "${FILE_NAME}.sha256"
+              printf '%s\n' \
+                "Download all six .part_XX assets, then run:" \
+                "cat ${FILE_NAME}.part_* > ${FILE_NAME}" \
+                "sha256sum -c ${FILE_NAME}.sha256" \
+                > "${FILE_NAME}.HOWTO.txt"
               cd ..
 
-              TAG_NAME="v$VERSION-${{ matrix.target }}"
-              RELEASE_NAME="${VERSION}-${{ matrix.target }}-${BUILD_DATE}"
+              TAG_NAME="v${VERSION}-${BETA}-${DEVICE}"
+              RELEASE_NAME="HubbleROM-${VERSION}-${BETA}-${DEVICE}-${BUILD_DATE}"
 
               echo "Creating GitHub Release: $RELEASE_NAME"
 
               RELEASE_DATA=$(jq -n \
                 --arg tag "$TAG_NAME" \
                 --arg name "$RELEASE_NAME" \
-                '{ tag_name: $tag, name: $name, draft: false, prerelease: false }')
+                --arg body "Flashable ZIP: $FILE_NAME. GitHub assets are split into six parts because of the per-file size limit. Download every .part_XX asset and follow the attached HOWTO file to reassemble and verify the ZIP." \
+                '{ tag_name: $tag, name: $name, body: $body, draft: false, prerelease: true }')
 
               RELEASE_RESPONSE=$(curl -s -X POST \
                 -H "Authorization: token $GH_TOKEN" \
@@ -186,7 +189,7 @@ jobs:
               fi
               echo "Release created: $RELEASE_ID"
 
-              # Upload all split parts
+              # Upload all parts, checksum, and reassembly instructions
               for part in split_tmp/*; do
                 PART_NAME=$(basename "$part")
                 UPLOAD_RESPONSE=$(curl -s -X POST \
@@ -202,9 +205,9 @@ jobs:
             # Generate OTA XML for release only
             if [ "$BUILD_TYPE" = "release" ]; then
               echo "Generating OTA XML..."
-              git clone --single-branch --branch main https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} updater_repo
+              git clone --single-branch --branch seventeen https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }} updater_repo
               cd updater_repo
-              git checkout main
+              git checkout seventeen
               mkdir -p updater
               XML_FILE="updater/v2/${{ matrix.target }}.xml"
 
@@ -232,8 +235,8 @@ jobs:
 
               git add $XML_FILE
               git commit -m "updater: v2: ${{ matrix.target }}.xml: Update to $VERSION" || true
-              git pull --rebase origin main
-              git push origin main
+              git pull --rebase origin seventeen
+              git push origin seventeen
               cd ..
             fi
           done

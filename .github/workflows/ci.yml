@@ -1,9 +1,13 @@
 name: CI
 
 on:
-  workflow_dispatch:
+  push:
     branches:
-      - 'sixteen'
+      - seventeen
+  pull_request:
+    branches:
+      - seventeen
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -38,17 +42,15 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v7
 
-      - name: Generate CI matrix
+      - name: Select ROM build target
         id: generate-matrix
         run: |
-          matrix="$(find target -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
-            | sort | jq -R -s -c 'split("\n") | map(select(length > 0))')"
-          echo "$matrix"
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo 'matrix=["y2slte"]' >> "$GITHUB_OUTPUT"
 
   build:
     name: Build
     needs: [shellcheck, generate-matrix]
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
 
     strategy:
