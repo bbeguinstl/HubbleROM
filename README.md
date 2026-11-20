@@ -2,37 +2,36 @@
   <img loading="lazy" src="readme-res/banner.png"/>
 </h1>
 <p align="center">
-  <a href="https://github.com/salvogiangri/UN1CA/blob/sixteen/LICENSE"><img loading="lazy" src="https://img.shields.io/github/license/salvogiangri/UN1CA?style=for-the-badge&logo=github"/></a>
-  <a href="https://github.com/salvogiangri/UN1CA/commits/sixteen"><img loading="lazy" src="https://img.shields.io/github/last-commit/salvogiangri/UN1CA/sixteen?style=for-the-badge"/></a>
-  <a href="https://github.com/salvogiangri/UN1CA/stargazers"><img loading="lazy" src="https://img.shields.io/github/stars/salvogiangri/UN1CA?style=for-the-badge"/></a>
-  <a href="https://github.com/salvogiangri/UN1CA/actions/workflows/ci.yml"><img loading="lazy" src="https://img.shields.io/github/actions/workflow/status/salvogiangri/UN1CA/ci.yml?style=for-the-badge"/></a>
-  <a href="https://crowdin.com/project/UN1CA"><img loading="lazy" src="https://img.shields.io/badge/Crowdin-263238?style=for-the-badge&logo=crowdin"/></a>
+  <a href="https://github.com/bbeguinstl/HubbleROM/blob/seventeen/LICENSE"><img loading="lazy" src="https://img.shields.io/github/license/bbeguinstl/HubbleROM?style=for-the-badge&logo=github"/></a>
+  <a href="https://github.com/bbeguinstl/HubbleROM/commits/seventeen"><img loading="lazy" src="https://img.shields.io/github/last-commit/bbeguinstl/HubbleROM/seventeen?style=for-the-badge"/></a>
+  <a href="https://github.com/bbeguinstl/HubbleROM/stargazers"><img loading="lazy" src="https://img.shields.io/github/stars/bbeguinstl/HubbleROM?style=for-the-badge"/></a>
+  <a href="https://github.com/bbeguinstl/HubbleROM/actions"><img loading="lazy" src="https://img.shields.io/github/actions/workflow/status/bbeguinstl/HubbleROM/ci.yml?style=for-the-badge"/></a>
 </p>
-<p align="center">UN1CA <i>(/ˈu.ni.ka/)</i> is a work-in-progress custom firmware for Samsung Galaxy devices.</p>
+<p align="center">HubbleROM is a custom One UI 9.5 Beta 1 port for the Samsung Galaxy S20+ LTE (y2slte).</p>
 
-> **Fork provenance:** This repository is a device-focused fork of [salvogiangri/UN1CA](https://github.com/salvogiangri/UN1CA), with additional ports and compatibility work for the supported devices.
+> **Project base:** HubbleROM continues [ShitStockMod](https://github.com/At30c/ShitStockModOrSomething)’s Galaxy S26+ One UI 9 port for y2slte, updated here to the Galaxy S26+ One UI 9.5 Beta 1 firmware. It retains the [UN1CA](https://github.com/salvogiangri/UN1CA) build system and compatible modules.
 
 <p align="center">
-  <a href="https://github.com/salvogiangri/UN1CA/discussions">🚀 Discussions</a>
+  <a href="https://github.com/bbeguinstl/HubbleROM">📦 Source</a>
   •
-  <a href="https://t.me/unicarom">💬 Telegram</a>
+  <a href="https://github.com/bbeguinstl/HubbleROM/releases">⬇️ Releases</a>
 </p>
 
-# What is UN1CA?
-UN1CA is a work-in-progress custom firmware for Samsung Galaxy devices, designed to provide a refined, optimized and more rich One UI experience.
-It is based on the latest and greatest iteration of Samsung's UX and it integrates numerous improvements, optimizations and exclusive features.
+# What is HubbleROM?
+HubbleROM ports the Galaxy S26+ One UI 9.5 Beta 1 firmware (`S947BXXS6BZK1`) to the Galaxy S20+ LTE (`y2slte`, Exynos 990), with device-specific kernel and compatibility changes.
 
-The UN1CA build system automatically builds the required tools, downloads and extracts firmware components, applies the required patches and generates a flashable zip for the target device.
+The project builds the required tools, extracts firmware components, applies the y2slte patches and creates a flashable zip.
 
-The goal is to deliver a fast, smooth and modern UX while offering additional tools, modifications and system‑level enhancements tailored for power users.
+The goal is to bring the current One UI experience to y2slte while keeping its hardware and device support usable.
 
-Any form of contribution, suggestions, bug report or feature request for the project will be welcome.
+Contributions, suggestions, bug reports and feature requests are welcome.
 
 # Features
 ### Core features:
-- Based on the latest stable Galaxy S22 firmware
+- Updated from the ShitStockMod Galaxy S26+ One UI 9 base to Galaxy S26+ One UI 9.5 Beta 1 (`S947BXXS6BZK1`)
+- Ported for Samsung Galaxy S20+ LTE (`y2slte`, Exynos 990)
 - EROFS powered
-- Galaxy S25 wallpapers/sounds included
+- Galaxy S26+ wallpapers and sounds included
 - Galaxy AI support
   - Audio eraser
   - Browsing assist
@@ -68,7 +67,8 @@ Any form of contribution, suggestions, bug report or feature request for the pro
 
 \* DeX via HDMI not available for devices without USB-C DP support
 
-### UN1CA-exclusive features:
+### HubbleROM tools and additions:
+- Hubble Settings panel with HubbleROM branding in About device
 - Integrated OTA updates app
 - Native/live blur toggle
 - One UI Home animations option
@@ -78,7 +78,6 @@ Any form of contribution, suggestions, bug report or feature request for the pro
 - Ability to hide installed apps ([Hide My Applist](https://github.com/Dr-TSNG/Hide-My-Applist))
 - Ability to hide developer options
 - Allow app downgrade toggle
-- Allow installing apps with old targetSdk toggle
 - Allow secure screenshot toggle
 - Screenshot/screen recording detection toggle
 - Unlimited backup storage on Google Photos
@@ -95,10 +94,19 @@ This project is licensed under the terms of the [GNU General Public License v3.0
 - [platform_build](https://android.googlesource.com/platform/build/) (ext4_utils, f2fs_utils, signapk), licensed under the [Apache License 2.0](https://source.android.com/docs/setup/about/licenses)
 
 # Contributors
-<a href="https://github.com/salvogiangri/UN1CA/graphs/contributors"><img loading="lazy" src="https://contrib.rocks/image?repo=salvogiangri/UN1CA"/></a>
+<p align="center">
+  <a href="https://github.com/At30c" title="At30c"><img loading="lazy" src="https://github.com/At30c.png?size=112" alt="At30c" width="88" height="88" style="border-radius:50%"/></a>
+  <a href="https://github.com/bbeguinstl" title="bbeguinstl"><img loading="lazy" src="https://github.com/bbeguinstl.png?size=112" alt="bbeguinstl" width="88" height="88" style="border-radius:50%"/></a>
+  <a href="https://github.com/miguelbarretoo" title="miguelbarretoo"><img loading="lazy" src="https://github.com/miguelbarretoo.png?size=112" alt="miguelbarretoo" width="88" height="88" style="border-radius:50%"/></a>
+</p>
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the same linked profile images.
 
 # Credits
 A special thanks goes to the following for their invaluable contributions in no particular order:
+- **[ShitStockMod](https://github.com/At30c/ShitStockModOrSomething)** for the S26+ One UI 9 y2slte port that HubbleROM continues.
+- **[UN1CA](https://github.com/salvogiangri/UN1CA)** and **[salvogiangri](https://github.com/salvogiangri)** for the build system, reusable modules and the ROM foundations used by this port.
+- **Samsung** for the Galaxy S26+ One UI 9.5 Beta firmware and the Galaxy S20+ device software.
 - **[ShaDisNX255](https://github.com/ShaDisNX255)** for his help, time and for his [NcX ROM](https://github.com/ShaDisNX255/NcX_Stock) which inspired this project
 - **[DavidArsene](https://github.com/DavidArsene)** for his help and time
 - **[paulowesll](https://github.com/paulowesll)** for his help and support
@@ -107,4 +115,4 @@ A special thanks goes to the following for their invaluable contributions in no 
 - **[Fede2782](https://github.com/Fede2782)** for his contributions and help with Exynos/MTK support
 - **[iDrinkCoffee](https://github.com/iDrinkCoffee-TG)** and **[RisenID](https://github.com/RisenID)** for their support
 - **[LineageOS Team](https://www.lineageos.org/)** for their original [OTA updater implementation](https://github.com/LineageOS/android_packages_apps_Updater)
-- *All the UN1CA project forks, contributors, testers and users ❤️*
+- *All the ShitStockMod and UN1CA contributors, testers and users whose work made this port possible ❤️*
