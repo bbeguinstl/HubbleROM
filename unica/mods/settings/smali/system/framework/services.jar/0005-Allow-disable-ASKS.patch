@@ -1,17 +1,9 @@
-From 0f644b3d61d4e77f8a2f9d377dd9c20a10405b94 Mon Sep 17 00:00:00 2001
-From: At30c <173511395+At30c@users.noreply.github.com>
-Date: Tue, 15 Sep 2026 20:33:00 -0300
-Subject: [PATCH] Allow disable ASKS
-
----
- .../android/server/asks/ASKSManagerService.smali | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+Subject: [PATCH] Allow disabling ASKS on Android 17
 
 diff --git a/smali/com/android/server/asks/ASKSManagerService.smali b/smali/com/android/server/asks/ASKSManagerService.smali
-index 55e628f..7b58c89 100644
 --- a/smali/com/android/server/asks/ASKSManagerService.smali
 +++ b/smali/com/android/server/asks/ASKSManagerService.smali
-@@ -4676,9 +4676,9 @@
+@@ -4420,9 +4420,9 @@
      move-object p1, v0
  
      :goto_0
@@ -24,7 +16,7 @@ index 55e628f..7b58c89 100644
  
      invoke-static {v1, v2}, Landroid/os/SystemProperties;->get(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
  
-@@ -28544,9 +28544,9 @@
+@@ -28287,9 +28287,9 @@
      :cond_6
      const-string/jumbo v0, "true"
  
@@ -37,22 +29,22 @@ index 55e628f..7b58c89 100644
  
      invoke-static {v1, v2}, Landroid/os/SystemProperties;->get(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
  
-@@ -30560,13 +30560,13 @@
+@@ -30403,13 +30403,13 @@
  
-     invoke-virtual {v6, v10}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+     invoke-virtual {v10, v9}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
  
--    const-string/jumbo v6, "ro.build.official.release"
+-    const-string/jumbo v9, "ro.build.official.release"
 -
--    invoke-static {v6}, Landroid/os/SystemProperties;->get(Ljava/lang/String;)Ljava/lang/String;
-+    const-string/jumbo v6, "persist.sys.unica.asks"
+-    invoke-static {v9}, Landroid/os/SystemProperties;->get(Ljava/lang/String;)Ljava/lang/String;
++    const-string/jumbo v9, "persist.sys.unica.asks"
 +
 +    const-string/jumbo v10, "true"
 +
-+    invoke-static {v6, v10}, Landroid/os/SystemProperties;->get(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
++    invoke-static {v9, v10}, Landroid/os/SystemProperties;->get(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
  
-     move-result-object v6
+     move-result-object v9
 -
 -    const-string/jumbo v10, "true"
  
-     invoke-virtual {v10, v6}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+     invoke-virtual {v10, v9}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
  

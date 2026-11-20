@@ -10,10 +10,10 @@ UN1CA: this patch is not complete! Please check unica/mods/settings/customize.sh
  2 files changed, 608 insertions(+), 1 deletion(-)
  create mode 100644 smali_classes7/io/mesalabs/unica/SamsungPropsHooks.smali
 
-diff --git a/smali_classes3/android/os/SemSystemProperties.smali b/smali_classes3/android/os/SemSystemProperties.smali
+diff --git a/smali_classes6/android/os/SemSystemProperties.smali b/smali_classes6/android/os/SemSystemProperties.smali
 index d40468a0..626ff234 100644
---- a/smali_classes3/android/os/SemSystemProperties.smali
-+++ b/smali_classes3/android/os/SemSystemProperties.smali
+--- a/smali_classes6/android/os/SemSystemProperties.smali
++++ b/smali_classes6/android/os/SemSystemProperties.smali
 @@ -13,8 +13,17 @@
  .end method
  

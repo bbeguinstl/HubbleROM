@@ -1,22 +1,51 @@
 # Show battery regulatory info in Settings
 # Requires SEM_BATTERY_PROPERTY_IC_AUTHENTICATION_RESULT support
+DECODE_APK "system" "system/framework/framework.jar"
+FRAMEWORK_APK="$APKTOOL_DIR/system/framework/framework.jar"
+FRAMEWORK_DEX_VERSION="$(unzip -p "$WORK_DIR/system/system/framework/framework.jar" classes.dex | dd bs=1 skip=4 count=3 2> /dev/null)"
+FRAMEWORK_DEX_METHOD_IDS="$(unzip -p "$WORK_DIR/system/system/framework/framework.jar" classes.dex | dd bs=1 skip=88 count=4 2> /dev/null | od -An -tu4 --endian=little | tr -d ' ')"
+INSTRUMENTATION_SMALI="$(find "$FRAMEWORK_APK" -type f -path '*/android/app/Instrumentation.smali' -printf '%P\n' -quit)"
+if [ "$FRAMEWORK_DEX_VERSION" = "041" ] && \
+        [ "$FRAMEWORK_DEX_METHOD_IDS" -ge "65536" ] && \
+        [[ "$INSTRUMENTATION_SMALI" == smali/* ]]; then
+    mkdir -p "$FRAMEWORK_APK/smali_classes8/android/app"
+    mv "$FRAMEWORK_APK/$INSTRUMENTATION_SMALI" \
+        "$FRAMEWORK_APK/smali_classes8/android/app/Instrumentation.smali"
+    INSTRUMENTATION_SMALI="smali_classes8/android/app/Instrumentation.smali"
+    LOG "- Moved Instrumentation into a separate DEX to keep the beta framework under its method-reference limit"
+fi
+for CLASS_PATH in \
+        'android/security/KeyStore2.smali' \
+        'android/system/keystore2/IKeystoreSecurityLevel$Stub$Proxy.smali' \
+        'android/system/keystore2/IKeystoreService$Stub$Proxy.smali' \
+        'android/security/keystore2/AndroidKeyStoreSpi.smali'; do
+    CLASS_SOURCE="$FRAMEWORK_APK/smali_classes4/$CLASS_PATH"
+    if [ -f "$CLASS_SOURCE" ]; then
+        mkdir -p "$FRAMEWORK_APK/smali_classes8/$(dirname "$CLASS_PATH")"
+        mv "$CLASS_SOURCE" "$FRAMEWORK_APK/smali_classes8/$CLASS_PATH"
+        LOG "- Moved patched $(basename "$CLASS_PATH") into the DEX overflow area"
+    fi
+done
+
 if [ "$(GET_FLOATING_FEATURE_CONFIG "SEC_FLOATING_FEATURE_BATTERY_SUPPORT_BSOH_SETTINGS")" ]; then
     SET_FLOATING_FEATURE_CONFIG "SEC_FLOATING_FEATURE_BATTERY_SUPPORT_BSOH_SETTINGS" --delete
 fi
 SET_FLOATING_FEATURE_CONFIG "SEC_FLOATING_FEATURE_SETTINGS_ENABLE_EU_BATTERY_REGULATORY" "TRUE"
 
-SMALI_PATCH "system" "system/framework/framework.jar" \
-    "smali/android/app/Instrumentation.smali" "replace" \
-    'newApplication(Ljava/lang/Class;Landroid/content/Context;)Landroid/app/Application;' \
-    'invoke-virtual {p0, p1}, Landroid/app/Application;->attach(Landroid/content/Context;)V' \
-    '    invoke-virtual {p0, p1}, Landroid/app/Application;->attach(Landroid/content/Context;)V\n\n    invoke-static {p1}, Lio/mesalabs/unica/SamsungPropsHooks;->init(Landroid/content/Context;)V' \
-    > /dev/null
-SMALI_PATCH "system" "system/framework/framework.jar" \
-    "smali/android/app/Instrumentation.smali" "replace" \
-    'newApplication(Ljava/lang/ClassLoader;Ljava/lang/String;Landroid/content/Context;)Landroid/app/Application;' \
-    'invoke-virtual {p0, p3}, Landroid/app/Application;->attach(Landroid/content/Context;)V' \
-    '    invoke-virtual {p0, p3}, Landroid/app/Application;->attach(Landroid/content/Context;)V\n\n    invoke-static {p3}, Lio/mesalabs/unica/SamsungPropsHooks;->init(Landroid/content/Context;)V' \
-    > /dev/null
+if ! grep -q -F 'SamsungPropsHooks;->init(Landroid/content/Context;)V' "$FRAMEWORK_APK/$INSTRUMENTATION_SMALI"; then
+    SMALI_PATCH "system" "system/framework/framework.jar" \
+        "$INSTRUMENTATION_SMALI" "replace" \
+        'newApplication(Ljava/lang/Class;Landroid/content/Context;)Landroid/app/Application;' \
+        'invoke-virtual {p0, p1}, Landroid/app/Application;->attach(Landroid/content/Context;)V' \
+        '    invoke-virtual {p0, p1}, Landroid/app/Application;->attach(Landroid/content/Context;)V\n\n    invoke-static {p1}, Lio/mesalabs/unica/SamsungPropsHooks;->init(Landroid/content/Context;)V' \
+        > /dev/null
+    SMALI_PATCH "system" "system/framework/framework.jar" \
+        "$INSTRUMENTATION_SMALI" "replace" \
+        'newApplication(Ljava/lang/ClassLoader;Ljava/lang/String;Landroid/content/Context;)Landroid/app/Application;' \
+        'invoke-virtual {p0, p3}, Landroid/app/Application;->attach(Landroid/content/Context;)V' \
+        '    invoke-virtual {p0, p3}, Landroid/app/Application;->attach(Landroid/content/Context;)V\n\n    invoke-static {p3}, Lio/mesalabs/unica/SamsungPropsHooks;->init(Landroid/content/Context;)V' \
+        > /dev/null
+fi
 
 DECODE_APK "system" "system/priv-app/SecSettings/SecSettings.apk"
 SECSETTINGS_APK="$APKTOOL_DIR/system/priv-app/SecSettings/SecSettings.apk"
@@ -59,18 +88,18 @@ SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
     'move-result p0' \
     'const/4 p0, 0x1'
 
-# Show real device model number
-MODEL_NAME_GETTER="$(find "$SECSETTINGS_APK" -type f \
-    -path '*/com/samsung/android/settings/deviceinfo/aboutphone/ModelNameGetter.smali' \
+# Show the target model number from the bootloader-provided model property.
+MODEL_NAME_PROVIDER="$(find "$SECSETTINGS_APK" -type f \
+    -path '*/com/samsung/android/settings/deviceinfo/aboutphone/ModelNameProvider.smali' \
     -printf '%P\n' -quit)"
-[ "$MODEL_NAME_GETTER" ] || ABORT "ModelNameGetter.smali not found"
+[ "$MODEL_NAME_PROVIDER" ] || ABORT "ModelNameProvider.smali not found"
 SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
-    "$MODEL_NAME_GETTER" "replace" \
+    "$MODEL_NAME_PROVIDER" "replace" \
     'getModelName()Ljava/lang/String;' \
     'ro.product.model' \
     'ro.boot.em.model'
 
-LOG_STEP_IN "- Adding UN1CA Settings"
+LOG_STEP_IN "- Adding Hubble Settings"
 
 # Dynamically patch SecSettings
 # - Add missing/non-xml files in place
@@ -95,6 +124,28 @@ while IFS= read -r f; do
         if [[ "$f" == *"res/values"* ]]; then
             PATCH_INST="/<\/resources>/i"
             CONTENT="$(sed -e "/?xml/d" -e "/resources>/d" "$MODPATH/SecSettings.apk/$f")"
+            # Module customization may run again when reusing a work directory.
+            # Keep values resources additive without appending entries that are
+            # already present in the decoded APK.
+            CONTENT="$(awk -v target="$APKTOOL_DIR/system/priv-app/SecSettings/SecSettings.apk/$f" '
+                BEGIN {
+                    while ((getline line < target) > 0) {
+                        if (match(line, /name="[^"]+"/)) {
+                            name = substr(line, RSTART + 6, RLENGTH - 7)
+                            seen[name] = 1
+                        }
+                    }
+                    close(target)
+                }
+                {
+                    if (match($0, /name="[^"]+"/)) {
+                        name = substr($0, RSTART + 6, RLENGTH - 7)
+                        if (seen[name]) next
+                        seen[name] = 1
+                    }
+                    print
+                }
+            ' <<< "$CONTENT")"
         else
             PATCH_INST="$(head -n 1 "$MODPATH/SecSettings.apk/$f")"
             CONTENT="$(tail -n +2 "$MODPATH/SecSettings.apk/$f")"
@@ -105,7 +156,15 @@ while IFS= read -r f; do
     fi
 done < <(find "$MODPATH/SecSettings.apk" -type f)
 
-# Add UN1CA Settings SearchIndexableData registrations
+# Add the HubbleROM banner above the About device details.
+ABOUT_DEVICE_XML="$SECSETTINGS_APK/res/xml/sec_my_device_info.xml"
+if ! grep -q 'key="hubble_about_banner"' "$ABOUT_DEVICE_XML"; then
+    sed -i '/<com.samsung.android.settings.widget.SecInsetCategoryPreference/i\    <com.android.settingslib.widget.LayoutPreference android:key="hubble_about_banner" android:layout="@layout/hubble_about_banner_layout" android:selectable="false" android:order="-10" />' \
+        "$ABOUT_DEVICE_XML"
+fi
+unset ABOUT_DEVICE_XML
+
+# Add Hubble Settings SearchIndexableData registrations
 SEARCH_INDEXABLE_RESOURCES="$(find "$SECSETTINGS_APK" -type f \
     -path '*/com/android/settingslib/search/SearchIndexableResourcesMobile.smali' -printf '%P\n' -quit)"
 SEARCH_FEATURE_PROVIDER="$(find "$SECSETTINGS_APK" -type f \
@@ -114,11 +173,16 @@ SEARCH_FEATURE_PROVIDER="$(find "$SECSETTINGS_APK" -type f \
 [ "$SEARCH_INDEXABLE_RESOURCES" ] || ABORT "SearchIndexableResourcesMobile.smali not found"
 [ "$SEARCH_FEATURE_PROVIDER" ] || ABORT "SearchFeatureProviderImpl lambda not found"
 LOG "- Patching \"$SEARCH_INDEXABLE_RESOURCES\" in /system/system/priv-app/SecSettings.apk"
-SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
-    "$SEARCH_INDEXABLE_RESOURCES" "replaceall" \
-    '.class public final Lcom/android/settingslib/search/SearchIndexableResourcesMobile;' \
-    '.class public Lcom/android/settingslib/search/SearchIndexableResourcesMobile;' \
-    > /dev/null
+if grep -q -F '.class public final Lcom/android/settingslib/search/SearchIndexableResourcesMobile;' \
+        "$SECSETTINGS_APK/$SEARCH_INDEXABLE_RESOURCES"; then
+    SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
+        "$SEARCH_INDEXABLE_RESOURCES" "replaceall" \
+        '.class public final Lcom/android/settingslib/search/SearchIndexableResourcesMobile;' \
+        '.class public Lcom/android/settingslib/search/SearchIndexableResourcesMobile;' \
+        > /dev/null
+else
+    LOG "- SearchIndexableResourcesMobile is already public; skipping"
+fi
 LOG "- Patching \"$SEARCH_FEATURE_PROVIDER\" in /system/system/priv-app/SecSettings.apk"
 SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
     "$SEARCH_FEATURE_PROVIDER" "replace" \
@@ -174,7 +238,7 @@ if [[ "$(GET_PROP "ro.hwui.use_vulkan")" != "true" ]]; then
 fi
 
 unset PATCH_INST CONTENT SECSETTINGS_APK SOFTWARE_UPDATE_UTILS SOFTWARE_UPDATE_CONTROLLER
-unset ONEUI_VERSION_CONTROLLER MODEL_NAME_GETTER SEARCH_INDEXABLE_RESOURCES SEARCH_FEATURE_PROVIDER
+unset ONEUI_VERSION_CONTROLLER MODEL_NAME_PROVIDER SEARCH_INDEXABLE_RESOURCES SEARCH_FEATURE_PROVIDER
 unset TOP_LEVEL_KEYS_COLLECTOR
 unset TOP_LEVEL_KEYS_FILE TOP_LEVEL_KEYS_LOCALS TOP_LEVEL_KEYS_ARRAY
 unset TOP_LEVEL_KEYS_LAST_REGISTER TOP_LEVEL_KEYS_NEW_REGISTER TOP_LEVEL_KEYS_NEW_LOCALS
