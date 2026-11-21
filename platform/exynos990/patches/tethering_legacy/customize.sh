@@ -394,7 +394,8 @@ EXPECTED_NETD_9_SHA256="b201bb4871e76bf68f096892e1358efb51dac1008f42d3b3d4d7637a
 BROKEN_PATCHED_NETD_9_SHA256="9f424b3d59957f25975260ad9267af6598ae94905988935b397495e8c71f630e"
 PATCHED_NETD_9_SHA256="ff780803b29a3fb993c841ca8da6166dcb32c8eb65f216cdab10b3066713ca32"
 BETA_NETD_9_5_SHA256="1f9cd20fdd0f416b75e7985cfce7b1fa6cb64e7fcc02b78217a63bc40262b0de"
-PATCHED_BETA_NETD_9_5_SHA256="fd35f505552331108c2553f01600cff853b99aa45e8e40f63261c435f91e16f0"
+BROKEN_PATCHED_BETA_NETD_9_5_SHA256="fd35f505552331108c2553f01600cff853b99aa45e8e40f63261c435f91e16f0"
+PATCHED_BETA_NETD_9_5_SHA256="cb1705e576fe3f9f8a4b7e5da61f462a16f3990da86632f42855d80abda29ecc"
 # Android V has a second, independent legacy-kernel rejection in
 # libnetd_updatable. This is intentionally a separate state from the 5.4
 # gate above: it preserves the normal continuation and only skips the V
@@ -463,11 +464,20 @@ elif [ "$ACTUAL_NETD_SHA256" = "$PATCHED_NETD_9_SHA256" ]; then
     FINAL_NETD_SHA256="$PATCHED_NETD_9_SHA256"
 elif [ "$ACTUAL_NETD_SHA256" = "$BETA_NETD_9_5_SHA256" ]; then
     # The One UI 9.5 beta moved the 25Q2+ 5.4 rejection behind a feature flag.
-    # Skip that error block while preserving the ordinary 4.19-compatible path.
+    # Its TBZ branches to the error builder when the legacy-kernel flag is
+    # clear. NOP only that conditional branch so execution falls through to
+    # the ordinary 4.19-compatible path. An unconditional B to 0x9634 enters
+    # the 25Q2+ unsupported-kernel error builder and makes netd abort at boot.
     LOG "- Disabling netd One UI 9.5 kernel 5.4 version gate"
     HEX_PATCH "$NETD_UPDATABLE" \
         "281c0054680000f008814039c81b0036" \
-        "281c0054680000f008814039de000014" > /dev/null || return 1
+        "281c0054680000f0088140391f2003d5" > /dev/null || return 1
+    FINAL_NETD_SHA256="$PATCHED_BETA_NETD_9_5_SHA256"
+elif [ "$ACTUAL_NETD_SHA256" = "$BROKEN_PATCHED_BETA_NETD_9_5_SHA256" ]; then
+    LOG "- Repairing cached netd One UI 9.5 kernel-gate branch"
+    HEX_PATCH "$NETD_UPDATABLE" \
+        "281c0054680000f008814039de000014" \
+        "281c0054680000f0088140391f2003d5" > /dev/null || return 1
     FINAL_NETD_SHA256="$PATCHED_BETA_NETD_9_5_SHA256"
 elif [ "$ACTUAL_NETD_SHA256" = "$PATCHED_BETA_NETD_9_5_SHA256" ]; then
     LOG "- netd One UI 9.5 kernel version gate is already disabled"
@@ -745,7 +755,8 @@ unset CAPEX PATCH_TMP DECODED PAYLOAD LEGACY_KERNEL_VERSION SERVICE_PATCH_DIR \
     EXPECTED_NETD_85_SHA256 BROKEN_PATCHED_NETD_85_SHA256 \
     PATCHED_NETD_85_SHA256 EXPECTED_NETD_9_SHA256 \
     BROKEN_PATCHED_NETD_9_SHA256 PATCHED_NETD_9_SHA256 \
-    BETA_NETD_9_5_SHA256 PATCHED_BETA_NETD_9_5_SHA256 PATCHED_NETD_9_V_GATE_SHA256 \
+    BETA_NETD_9_5_SHA256 BROKEN_PATCHED_BETA_NETD_9_5_SHA256 \
+    PATCHED_BETA_NETD_9_5_SHA256 PATCHED_NETD_9_V_GATE_SHA256 \
     PATCHED_NETD_9_BPF_NONFATAL_SHA256 \
     ACTUAL_NETD_SHA256 FINAL_NETD_SHA256 SALT \
     NETD_BPF EXPECTED_NETD_BPF_9_SHA256 PATCHED_NETD_BPF_9_SHA256 \
