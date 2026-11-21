@@ -28,10 +28,10 @@ for _ in $(seq 1 120); do
 done
 "${ADB[@]}" get-state >/dev/null 2>&1 || die "TWRP não respondeu via adb"
 
-TARGET="$(${ADB[@]} shell 'for p in /dev/block/by-name/vendor /dev/block/mapper/vendor; do [ -e "$p" ] && { case "$p" in /dev/block/dm-*) continue;; esac; echo "$p"; break; }; done' | tr -d '\r' | awk 'NF { print $1; exit }')"
+TARGET="$("${ADB[@]}" shell 'for p in /dev/block/by-name/vendor /dev/block/mapper/vendor; do [ -e "$p" ] && { case "$p" in /dev/block/dm-*) continue;; esac; echo "$p"; break; }; done' | tr -d '\r' | awk 'NF { print $1; exit }')"
 [[ "$TARGET" == /dev/block/by-name/vendor || "$TARGET" == /dev/block/mapper/vendor ]] || \
     die "bloco vendor seguro não encontrado no TWRP"
-PARTITION_SIZE="$(${ADB[@]} shell "blockdev --getsize64 $TARGET" | tr -d '\r' | awk 'NF { print $1; exit }')"
+PARTITION_SIZE="$("${ADB[@]}" shell "blockdev --getsize64 $TARGET" | tr -d '\r' | awk 'NF { print $1; exit }')"
 [[ "$PARTITION_SIZE" =~ ^[0-9]+$ ]] || die "não foi possível obter o tamanho da partição vendor no TWRP"
 [[ "$IMAGE_SIZE" == "$PARTITION_SIZE" ]] || die "tamanho incompatível: imagem=$IMAGE_SIZE partição=$PARTITION_SIZE"
 
