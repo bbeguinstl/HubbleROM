@@ -67,9 +67,13 @@ EXTRACT_RAMDISK_CPIO()
     local format="$2"
     local destination="$3"
     local errors="$TMP_DIR/cpio-extract.errors"
+    local node_path
+    local config_path
     local had_errexit=0
     local -a pipe_status=()
 
+    RAMDISK_NODES_FILE=""
+    RAMDISK_FS_CONFIG=""
     [[ "$-" == *e* ]] && had_errexit=1
     : > "$errors" || return 1
     set +e
@@ -90,9 +94,68 @@ EXTRACT_RAMDISK_CPIO()
     fi
     if [[ "${pipe_status[1]:-1}" != 0 ]]; then
         if [[ -s "$errors" ]] && ! grep -vE \
-            '^cpio: (\./)?dev/[^:]+: Cannot mknod: Operation not permitted$' \
+            '^cpio: (\./)?dev/(null|console|urandom|kmsg): Cannot mknod: Operation not permitted$' \
             "$errors"; then
-            LOGW "Ignoring ramdisk device nodes the runner cannot create"
+            RAMDISK_NODES_FILE="$TMP_DIR/ramdisk-nodes"
+            : > "$RAMDISK_NODES_FILE" || return 1
+            while IFS= read -r node_path; do
+                case "${node_path#./}" in
+                    dev/null)
+                        printf 'nod dev/null 0666 0 0 c 1 3\n' >> "$RAMDISK_NODES_FILE"
+                        ;;
+                    dev/console)
+                        printf 'nod dev/console 0600 0 0 c 5 1\n' >> "$RAMDISK_NODES_FILE"
+                        ;;
+                    dev/urandom)
+                        printf 'nod dev/urandom 0666 0 0 c 1 9\n' >> "$RAMDISK_NODES_FILE"
+                        ;;
+                    dev/kmsg)
+                        printf 'nod dev/kmsg 0600 0 0 c 1 11\n' >> "$RAMDISK_NODES_FILE"
+                        ;;
+                esac
+            done < <(sed -nE \
+                's/^cpio: (\.\/)?(dev\/(null|console|urandom|kmsg)): Cannot mknod: Operation not permitted$/\2/p' \
+                "$errors")
+            [[ -s "$RAMDISK_NODES_FILE" ]] || {
+                cat "$errors" >&2
+                return 1
+            }
+            RAMDISK_FS_CONFIG="$TMP_DIR/ramdisk-fs-config"
+            python3 - "$destination" "$RAMDISK_NODES_FILE" "$RAMDISK_FS_CONFIG" <<'PY'
+import os
+import stat
+import sys
+from pathlib import Path
+
+root, nodes_file, output = map(Path, sys.argv[1:])
+entries = {}
+for line in nodes_file.read_text(encoding="utf-8").splitlines():
+    fields = line.split()
+    if len(fields) != 8 or fields[0] != "nod":
+        raise SystemExit(f"Invalid mkbootfs node entry: {line}")
+    _, path, mode, uid, gid, *_ = fields
+    entries[path] = (int(uid), int(gid), int(mode, 8))
+
+for path in root.rglob("*"):
+    name = path.relative_to(root).as_posix()
+    if any(char.isspace() for char in name):
+        raise SystemExit(f"Whitespace in ramdisk path cannot be represented: {name!r}")
+    metadata = path.lstat()
+    entries[name] = (
+        metadata.st_uid,
+        metadata.st_gid,
+        stat.S_IMODE(metadata.st_mode),
+    )
+
+lines = [
+    f"{name} {uid} {gid} {mode:04o}"
+    for name, (uid, gid, mode) in sorted(entries.items())
+]
+lines.append(" 0 0 0755")
+output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+            [[ -s "$RAMDISK_FS_CONFIG" ]] || return 1
+            LOGW "Preserving ramdisk device nodes through mkbootfs"
         else
             cat "$errors" >&2
             return 1
@@ -145,9 +208,17 @@ while IFS= read -r f; do
     LOG "- Repacking $BOOT_FILE/$(basename "$f")"
 
     if [[ "$RAMDISK_FORMAT" == "gz" ]]; then
-        EVAL "mkbootfs \"$TMP_DIR/out/ramdisk_extracted\" | gzip > \"$f\""
+        if [[ -n "$RAMDISK_NODES_FILE" ]]; then
+            EVAL "mkbootfs -f \"$RAMDISK_FS_CONFIG\" -n \"$RAMDISK_NODES_FILE\" \"$TMP_DIR/out/ramdisk_extracted\" | gzip > \"$f\""
+        else
+            EVAL "mkbootfs \"$TMP_DIR/out/ramdisk_extracted\" | gzip > \"$f\""
+        fi
     elif [[ "$RAMDISK_FORMAT" == "lz4" ]]; then
-        EVAL "mkbootfs \"$TMP_DIR/out/ramdisk_extracted\" | lz4 -l -12 --favor-decSpeed > \"$f\""
+        if [[ -n "$RAMDISK_NODES_FILE" ]]; then
+            EVAL "mkbootfs -f \"$RAMDISK_FS_CONFIG\" -n \"$RAMDISK_NODES_FILE\" \"$TMP_DIR/out/ramdisk_extracted\" | lz4 -l -12 --favor-decSpeed > \"$f\""
+        else
+            EVAL "mkbootfs \"$TMP_DIR/out/ramdisk_extracted\" | lz4 -l -12 --favor-decSpeed > \"$f\""
+        fi
     fi
 
     EVAL "rm -rf \"$TMP_DIR/out/ramdisk_extracted\""
@@ -192,7 +263,7 @@ LOG "- Verified $BOOT_FILE fstab uses $TARGET_OS_FILE_SYSTEM_TYPE for all logica
 
 EVAL "rm -rf \"$TMP_DIR\""
 
-unset PARTITIONS_LIST CANONICAL_FSTAB BOOT_FILE MKBOOTIMG_ARGS RAMDISK_FILE RAMDISK_FORMAT VERIFY_DIR VERIFY_RAMDISK VERIFY_FORMAT
+unset PARTITIONS_LIST CANONICAL_FSTAB BOOT_FILE MKBOOTIMG_ARGS RAMDISK_FILE RAMDISK_FORMAT RAMDISK_NODES_FILE RAMDISK_FS_CONFIG VERIFY_DIR VERIFY_RAMDISK VERIFY_FORMAT
 unset -f PATCH_FSTAB
 unset -f GET_CANONICAL_FSTAB VALIDATE_FSTAB_TYPE
 unset -f EXTRACT_RAMDISK_CPIO
