@@ -60,6 +60,46 @@ PATCH_FSTAB()
         EVAL "uniq \"$f\" \"$TMP_DIR/tmp\" && mv -f \"$TMP_DIR/tmp\" \"$f\""
     done < <(find "$1" -type f -name "fstab.*")
 }
+
+EXTRACT_RAMDISK_CPIO()
+{
+    local archive="$1"
+    local format="$2"
+    local destination="$3"
+    local errors="$TMP_DIR/cpio-extract.errors"
+    local had_errexit=0
+    local -a pipe_status=()
+
+    [[ "$-" == *e* ]] && had_errexit=1
+    : > "$errors" || return 1
+    set +e
+    if [[ "$format" == "gz" ]]; then
+        gzip -dc "$archive" | cpio --quiet -i -D "$destination" 2> "$errors"
+    elif [[ "$format" == "lz4" ]]; then
+        lz4 -d "$archive" -c | cpio --quiet -i -D "$destination" 2> "$errors"
+    else
+        [[ "$had_errexit" == 1 ]] && set -e
+        return 1
+    fi
+    pipe_status=( "${PIPESTATUS[@]}" )
+    [[ "$had_errexit" == 1 ]] && set -e
+
+    if [[ "${pipe_status[0]:-1}" != 0 ]]; then
+        cat "$errors" >&2
+        return 1
+    fi
+    if [[ "${pipe_status[1]:-1}" != 0 ]]; then
+        if [[ -s "$errors" ]] && ! grep -vE \
+            '^cpio: (\./)?dev/[^:]+: Cannot mknod: Operation not permitted$' \
+            "$errors"; then
+            LOGW "Ignoring ramdisk device nodes the runner cannot create"
+        else
+            cat "$errors" >&2
+            return 1
+        fi
+    fi
+    return 0
+}
 # ]
 
 BOOT_FILE="boot.img"
@@ -97,11 +137,8 @@ while IFS= read -r f; do
     fi
 
     EVAL "mkdir -p \"$TMP_DIR/out/ramdisk_extracted\""
-    if [[ "$RAMDISK_FORMAT" == "gz" ]]; then
-        EVAL "cat \"$f\" | gzip -d | cpio --quiet -i -D \"$TMP_DIR/out/ramdisk_extracted\""
-    elif [[ "$RAMDISK_FORMAT" == "lz4" ]]; then
-        EVAL "cat \"$f\" | lz4 -d | cpio --quiet -i -D \"$TMP_DIR/out/ramdisk_extracted\""
-    fi
+    EXTRACT_RAMDISK_CPIO "$f" "$RAMDISK_FORMAT" \
+        "$TMP_DIR/out/ramdisk_extracted" || return 1
 
     PATCH_FSTAB "$TMP_DIR/out/ramdisk_extracted"
 
@@ -148,11 +185,8 @@ elif [[ "$(READ_BYTES_AT "$VERIFY_RAMDISK" "0" "4")" == "184c2102" ]]; then
 fi
 [ -n "$VERIFY_FORMAT" ] || ABORT "Repacked $BOOT_FILE has an unsupported ramdisk format"
 EVAL "mkdir -p \"$VERIFY_DIR/ramdisk_extracted\""
-if [[ "$VERIFY_FORMAT" == "gz" ]]; then
-    EVAL "gzip -dc \"$VERIFY_RAMDISK\" | cpio --quiet -i -D \"$VERIFY_DIR/ramdisk_extracted\""
-else
-    EVAL "lz4 -d \"$VERIFY_RAMDISK\" -c | cpio --quiet -i -D \"$VERIFY_DIR/ramdisk_extracted\""
-fi
+EXTRACT_RAMDISK_CPIO "$VERIFY_RAMDISK" "$VERIFY_FORMAT" \
+    "$VERIFY_DIR/ramdisk_extracted" || return 1
 VALIDATE_FSTAB_TYPE "$VERIFY_DIR/ramdisk_extracted" || return 1
 LOG "- Verified $BOOT_FILE fstab uses $TARGET_OS_FILE_SYSTEM_TYPE for all logical partitions"
 
@@ -161,3 +195,4 @@ EVAL "rm -rf \"$TMP_DIR\""
 unset PARTITIONS_LIST CANONICAL_FSTAB BOOT_FILE MKBOOTIMG_ARGS RAMDISK_FILE RAMDISK_FORMAT VERIFY_DIR VERIFY_RAMDISK VERIFY_FORMAT
 unset -f PATCH_FSTAB
 unset -f GET_CANONICAL_FSTAB VALIDATE_FSTAB_TYPE
+unset -f EXTRACT_RAMDISK_CPIO
