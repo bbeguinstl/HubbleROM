@@ -9,8 +9,11 @@ SKIPUNZIP=1
 HYPER_CONFIG="$WORK_DIR/vendor/etc/hyper/config_chipset.json"
 
 if [ ! -f "$HYPER_CONFIG" ]; then
-    LOGE "Hyper config not found: ${HYPER_CONFIG//$WORK_DIR/}"
-    return 1
+    # Some targets use the LineageOS 24 vendor instead of the Samsung vendor,
+    # which does not ship Samsung's hyper-service config. This tuning is only
+    # meaningful when that config is present, so keep the module optional.
+    LOGW "Skipping hyper-service tuning; config is absent from this vendor: ${HYPER_CONFIG//$WORK_DIR/}"
+    return 0
 fi
 
 LOG "- Shortening hyper-service boost durations"
