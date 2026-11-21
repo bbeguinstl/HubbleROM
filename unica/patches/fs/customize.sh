@@ -157,7 +157,16 @@ while offset + 110 <= len(archive):
     offset = (offset + size + 3) & ~3
 
 entries = {}
-node_lines = []
+dev_dir = root / "dev"
+if not dev_dir.is_dir():
+    raise SystemExit("Source ramdisk device nodes have no dev/ parent directory")
+dev_metadata = dev_dir.lstat()
+if not stat.S_ISDIR(dev_metadata.st_mode):
+    raise SystemExit("Source ramdisk dev/ parent is not a directory")
+node_lines = [
+    f"dir dev {stat.S_IMODE(dev_metadata.st_mode):04o} "
+    f"{dev_metadata.st_uid} {dev_metadata.st_gid}"
+]
 for name in sorted(missing):
     if name not in nodes:
         raise SystemExit(f"Could not find original device-node metadata: {name}")
