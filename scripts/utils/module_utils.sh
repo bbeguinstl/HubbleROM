@@ -15,7 +15,7 @@ ABORT()
     return 1
 }
 
-# APPLY_PATCH <partition> <apk/jar> <patch>
+# APPLY_PATCH <partition> <apk/jar> <patch> [optional]
 # Applies a unified diff patch to the provided APK/JAR decoded directory.
 APPLY_PATCH()
 {
@@ -26,6 +26,7 @@ APPLY_PATCH()
     local PARTITION="$1"
     local FILE="$2"
     local PATCH="$3"
+    local OPTIONAL="${4:-false}"
 
     if ! IS_VALID_PARTITION_NAME "$PARTITION"; then
         LOGE "\"$PARTITION\" is not a valid partition name"
@@ -52,6 +53,13 @@ APPLY_PATCH()
         --directory="$APKTOOL_DIR/$PARTITION/${FILE//system\//}" \
         --reverse --check --unsafe-paths "$PATCH" > /dev/null 2>&1; then
         LOG "  - Patch is already applied; skipping"
+        return 0
+    fi
+
+    if [[ "$OPTIONAL" == "true" ]] && ! LC_ALL=C git apply \
+        --directory="$APKTOOL_DIR/$PARTITION/${FILE//system\//}" \
+        --check --unsafe-paths "$PATCH" > /dev/null 2>&1; then
+        LOGW "Skipping optional smali patch because its target does not match this donor: $(basename "$PATCH")"
         return 0
     fi
 
