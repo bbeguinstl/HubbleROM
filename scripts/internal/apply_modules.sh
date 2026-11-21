@@ -96,11 +96,13 @@ APPLY_SMALI_PATCHES()
 
     while IFS= read -r p; do
         local FILE="$TARGET"
+        local OPTIONAL_PATCH="$OPTIONAL_PATCHES"
         if [[ "$PARTITION" != "system" ]]; then
             FILE="$(cut -d "/" -f 2- -s <<< "$FILE")"
         fi
+        [ -f "$p.optional" ] && OPTIONAL_PATCH=true
 
-        APPLY_PATCH "$PARTITION" "$FILE" "$p" "$OPTIONAL_PATCHES"
+        APPLY_PATCH "$PARTITION" "$FILE" "$p" "$OPTIONAL_PATCH"
     done < <(find "$PATCHES_PATH/$TARGET" -type f -name "*.patch" | sort -n)
 
     return 0

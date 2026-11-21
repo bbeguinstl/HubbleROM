@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: ditternation <ditternation@localhost>
+Subject: [PATCH] Use HIDL audio fallback on Exynos 990
+
+The One UI 9 framework probes an AIDL audio service before falling back to
+HIDL. This target uses the vendor HIDL audio HAL, so skip the unsupported
+AIDL probe and use the HIDL service directly.
+---
+diff --git a/smali/com/android/server/audio/AudioService.smali b/smali/com/android/server/audio/AudioService.smali
+index 18197f683..3493ef520 100644
+--- a/smali/com/android/server/audio/AudioService.smali
++++ b/smali/com/android/server/audio/AudioService.smali
+@@ -24015,17 +24015,6 @@
+ 
+     move-result-object v1
+ 
+-    const-string/jumbo v2, "android.hardware.audio.core.IModule/default"
+-
+-    invoke-static {v2}, Landroid/os/ServiceManager;->checkService(Ljava/lang/String;)Landroid/os/IBinder;
+-
+-    move-result-object v2
+-
+-    if-eqz v2, :cond_0
+-
+-    goto :goto_1
+-
+-    :cond_0
+     const-string/jumbo v2, "default"
+ 
+     invoke-static {v1, v2}, Landroid/os/HwBinder;->getService(Ljava/lang/String;Ljava/lang/String;)Landroid/os/IHwBinder;

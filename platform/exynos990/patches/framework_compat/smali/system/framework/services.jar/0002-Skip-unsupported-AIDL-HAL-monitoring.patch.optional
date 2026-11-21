@@ -1,0 +1,3 @@
+The One UI 9.5 donor changed the Watchdog HAL interface list. Apply this
+compatibility patch only when its smali context matches; the AudioService
+fallback is maintained as a separate required patch.

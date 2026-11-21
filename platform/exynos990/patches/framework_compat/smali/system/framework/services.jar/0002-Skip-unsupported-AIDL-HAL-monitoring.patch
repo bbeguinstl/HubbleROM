@@ -1,18 +1,10 @@
-From 3f5b69c2b2db7e8feef4d4d88a8d44aefc524c5c Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: ditternation <ditternation@localhost>
-Date: Tue, 23 Jun 2026 00:56:00 +0200
-Subject: [PATCH] Avoid unsupported AIDL HAL probes
+Subject: [PATCH] Skip unsupported AIDL HAL monitoring on Exynos 990
 
-One UI 9 framework code probes AIDL audio and graphics services before
-falling back to legacy HIDL HALs. Exynos2100 vendor does not implement
-those AIDL HALs, so the probes produce repeated servicemanager VINTF misses.
-Use the HIDL audio fallback directly and keep Watchdog from monitoring AIDL
-audio/graphics interfaces that are intentionally absent on this target.
+Remove AIDL audio and graphics HAL interfaces that the Exynos 990 vendor does
+not provide from Watchdog's monitored interface list.
 ---
- smali/com/android/server/Watchdog.smali           | 42 +++++++++--------------
- smali/com/android/server/audio/AudioService.smali | 13 -------
- 2 files changed, 16 insertions(+), 39 deletions(-)
-
 diff --git a/smali/com/android/server/Watchdog.smali b/smali/com/android/server/Watchdog.smali
 --- a/smali/com/android/server/Watchdog.smali
 +++ b/smali/com/android/server/Watchdog.smali
@@ -103,28 +95,3 @@ diff --git a/smali/com/android/server/Watchdog.smali b/smali/com/android/server/
 +    filled-new-array/range {v1 .. v23}, [Ljava/lang/String;
  
      move-result-object v0
- 
-diff --git a/smali/com/android/server/audio/AudioService.smali b/smali/com/android/server/audio/AudioService.smali
-index 18197f683..3493ef520 100644
---- a/smali/com/android/server/audio/AudioService.smali
-+++ b/smali/com/android/server/audio/AudioService.smali
-@@ -24015,17 +24015,6 @@
- 
-     move-result-object v1
- 
--    const-string/jumbo v2, "android.hardware.audio.core.IModule/default"
--
--    invoke-static {v2}, Landroid/os/ServiceManager;->checkService(Ljava/lang/String;)Landroid/os/IBinder;
--
--    move-result-object v2
--
--    if-eqz v2, :cond_0
--
--    goto :goto_1
--
--    :cond_0
-     const-string/jumbo v2, "default"
- 
-     invoke-static {v1, v2}, Landroid/os/HwBinder;->getService(Ljava/lang/String;Ljava/lang/String;)Landroid/os/IHwBinder;
--- 
-2.52.0
