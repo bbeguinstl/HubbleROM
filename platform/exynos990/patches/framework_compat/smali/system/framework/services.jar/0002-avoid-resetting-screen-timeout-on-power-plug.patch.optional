@@ -1,0 +1,3 @@
+The One UI 9.5 donor changed the PowerManagerService smali context. Keep this
+behavioral timeout patch when its context applies, but do not block building
+the ROM when that method layout differs.
