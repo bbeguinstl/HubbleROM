@@ -199,13 +199,28 @@ fi
 # Support legacy Face HAL (pre-API 34)
 if [ "$TARGET_PLATFORM_SDK_VERSION" -lt "34" ]; then
     if [ ! -f "$WORK_DIR/vendor/bin/hw/vendor.samsung.hardware.biometrics.face@3.0-service" ]; then
+        FACE_HAL_PRESENT=false
+        if grep -RqE 'vendor\.samsung\.hardware\.biometrics\.face|SehBiometricsFace' \
+                "$WORK_DIR/vendor/etc/vintf"; then
+            FACE_HAL_PRESENT=true
+        elif find "$WORK_DIR/vendor/bin/hw" -maxdepth 1 -type f -iname '*face*' \
+                -print -quit | grep -q .; then
+            FACE_HAL_PRESENT=true
+        fi
+
+        if ! $FACE_HAL_PRESENT; then
+            # LineageOS y2s vendor exposes no Samsung Face HAL, so the
+            # Samsung-only HIDL compatibility patch cannot provide support
+            # and is not needed for the framework to boot.  Avoid applying
+            # stale Android 17 smali hunks when there is no provider to bind.
+            LOG "- Skipping Samsung Face HIDL adaptation; vendor declares no face HAL"
         # Android 17 services.jar is not source-compatible with the old
         # unified patch above.  On M21s the firmware exposes only the Samsung
         # Face HIDL 2.0 service, while the modern framework already contains
         # both V2 and V3 adapters.  Select the V2 path through the existing
         # FEATURE_JDM_HAL switch instead of applying stale hunks (which would
         # abort the build and could leave a mixed V2/V3 services.jar).
-        if [ "$TARGET_CODENAME" = "m21s" ] || [ "$TARGET_PLATFORM" = "exynos9611" ]; then
+        elif [ "$TARGET_CODENAME" = "m21s" ] || [ "$TARGET_PLATFORM" = "exynos9611" ]; then
             PATCHED=true
             LOG "- Selecting Face HIDL 2.0 adapter for M21s (modern services.jar)"
             DECODE_APK "system" "system/framework/services.jar"
@@ -248,6 +263,7 @@ if [ "$TARGET_PLATFORM_SDK_VERSION" -lt "34" ]; then
             SMALI_PATCH "system" "system/framework/services.jar" \
                 "smali_classes2/vendor/samsung/hardware/biometrics/face/V3_0/ISehBiometricsFaceClientCallback.smali" "remove"
         fi
+        unset FACE_HAL_PRESENT
     fi
 fi
 
