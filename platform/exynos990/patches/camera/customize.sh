@@ -167,7 +167,10 @@ else
             "$HDR10P_SVC_BETA_FROM" "$HDR10P_SVC_BETA_TO"
     elif ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_SVC_TO" && \
          ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_SVC_BETA_TO"; then
-        ABORT "Missing Android 17 SVC fallback pattern"
+        # One UI 9.5 beta builds can move this optional camera call site while
+        # retaining the surrounding encoder implementation. Do not block a
+        # ROM build on a camera-only optimization when the donor layout differs.
+        LOGW "No matching Android 17 SVC fallback pattern; leaving donor camera code unchanged"
     fi
 
     # Android 17 asks for OMX_VIDEO_HEVCProfileMain10HDR10Plus (0x2000), but
@@ -186,26 +189,36 @@ else
     HDR10P_BRIDGE_OLD="48008052e8af00b9cafdff1773da099182fbfff042143391c0008052e10313aa7cf20594e0fbffb0"
     HDR10P_BRIDGE_BETA_FROM="48008052e8af00b913fcff9073363091a2fbff9042943e91c0008052e10313aa7dfa0594e0fbffd0"
     HDR10P_BRIDGE_TO="ccfdff17e8af00b9cafdff1773da0991a2035eb85f0840716100005402008252a2031eb87a110014"
+    HDR10P_BRIDGE_READY=false
     if xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_BRIDGE_FROM"; then
         HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
             "$HDR10P_BRIDGE_FROM" "$HDR10P_BRIDGE_TO"
+        HDR10P_BRIDGE_READY=true
     elif xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_BRIDGE_OLD"; then
         HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
             "$HDR10P_BRIDGE_OLD" "$HDR10P_BRIDGE_TO"
+        HDR10P_BRIDGE_READY=true
     elif xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_BRIDGE_BETA_FROM"; then
         HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
             "$HDR10P_BRIDGE_BETA_FROM" "$HDR10P_BRIDGE_TO"
+        HDR10P_BRIDGE_READY=true
+    elif xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_BRIDGE_TO"; then
+        HDR10P_BRIDGE_READY=true
     elif ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_BRIDGE_TO"; then
-        ABORT "Missing Android 17 HDR10+ profile-bridge code-cave pattern"
+        LOGW "No matching Android 17 HDR10+ bridge pattern; leaving donor HEVC profile handling unchanged"
     fi
 
     HDR10P_PROFILE_FROM="a2035eb8e30340b9e00313aa21008052"
     HDR10P_PROFILE_TO="82eeff17e30340b9e00313aa21008052"
-    if xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_PROFILE_FROM"; then
-        HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
-            "$HDR10P_PROFILE_FROM" "$HDR10P_PROFILE_TO"
-    elif ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_PROFILE_TO"; then
-        ABORT "Missing Android 17 HEVC profile-load trampoline pattern"
+    if $HDR10P_BRIDGE_READY; then
+        if xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_PROFILE_FROM"; then
+            HEX_PATCH "$WORK_DIR/system/system/lib64/libstagefright.so" \
+                "$HDR10P_PROFILE_FROM" "$HDR10P_PROFILE_TO"
+        elif ! xxd -p -c 0 "$WORK_DIR/system/system/lib64/libstagefright.so" | grep -q "$HDR10P_PROFILE_TO"; then
+            LOGW "No matching Android 17 HEVC profile-load pattern; keeping donor profile handling unchanged"
+        fi
+    else
+        LOGW "Skipping Android 17 HEVC profile trampoline because its bridge is unavailable"
     fi
 
     # Migrate incremental work directories made with the superseded
@@ -261,6 +274,7 @@ e10a005468f242b9e1530091e2030091|1f2003d568f242b9e1530091e2030091
     unset SUSPEND_RECORDING_FROM SUSPEND_RECORDING_TO \
         HDR10P_SVC_FROM HDR10P_SVC_TO HDR10P_SVC_BETA_FROM HDR10P_SVC_BETA_TO \
         HDR10P_BRIDGE_FROM HDR10P_BRIDGE_OLD HDR10P_BRIDGE_BETA_FROM HDR10P_BRIDGE_TO \
+        HDR10P_BRIDGE_READY \
         HDR10P_PROFILE_FROM HDR10P_PROFILE_TO \
         HDR10P_ASSERT_FROM HDR10P_ASSERT_NOP HDR10P_ASSERT_OLD \
         HDR10P_CFI_RESTORE_PATTERNS HDR10P_CFI_ORIGINAL HDR10P_CFI_OLD \
