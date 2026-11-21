@@ -203,6 +203,12 @@ GENERATE_UPDATER_SCRIPT()
             GET_DEVICE_FROM_MOUNTPOINT "/boot"
             echo    ");"
         fi
+        if [ -f "$TMP_DIR/up_param.bin" ]; then
+            echo    'ui_print("Installing Samsung Galaxy splash image...");'
+            echo -n 'package_extract_file("up_param.bin", "'
+            echo -n "$TARGET_OS_BOOT_DEVICE_PATH"
+            echo    '/up_param");'
+        fi
 
         echo    'show_progress(0.100000, 10);'
 
@@ -244,6 +250,13 @@ rmdir "$TMP_DIR/.target-files"
 
 BUILD_INFO="$(cat "$TMP_DIR/build_info.txt")"
 rm -f "$TMP_DIR/build_info.txt"
+
+# The vendor splash is stored in the non-Android up_param partition and is
+# generated alongside the work directory rather than in target-files images.
+if [ -f "$WORK_DIR/up_param.bin" ]; then
+    LOG "- Staging up_param.bin"
+    cp -a "$WORK_DIR/up_param.bin" "$TMP_DIR/up_param.bin"
+fi
 
 TARGET_CODENAME="$(grep "^device" <<< "$BUILD_INFO" | cut -d "=" -f 2 -s)"
 if [ ! -d "$SRC_DIR/target/$TARGET_CODENAME" ]; then
