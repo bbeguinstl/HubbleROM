@@ -1,0 +1,2 @@
+This legacy HIDL radio compatibility patch is behavioral, not required for
+boot. Keep it when the donor method matches; skip it if One UI 9.5 changed it.

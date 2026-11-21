@@ -1,0 +1,2 @@
+Exynos 990 has no satellite radio. This optimization is behavioral and must
+not block boot when the donor's satellite implementation has changed.

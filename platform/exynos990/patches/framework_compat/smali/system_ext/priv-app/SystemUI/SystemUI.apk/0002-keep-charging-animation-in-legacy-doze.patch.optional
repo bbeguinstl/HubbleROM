@@ -1,0 +1,2 @@
+This SystemUI doze-charging compatibility patch is behavioral. Keep it when
+the donor smali matches; skip it if One UI 9.5 changed that code.
