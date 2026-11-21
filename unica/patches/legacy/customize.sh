@@ -189,7 +189,7 @@ if [ "$TARGET_PLATFORM_SDK_VERSION" -lt "34" ]; then
         else
             PATCHED=true
             APPLY_PATCH "system" "system/priv-app/SamsungCamera/SamsungCamera.apk" \
-                "$MODPATH/camera/SamsungCamera.apk/0002-Backport-legacy-Scene-detection-code.patch"
+                "$MODPATH/camera/SamsungCamera.apk/0002-Backport-legacy-Scene-detection-code.patch" true
         fi
         unset CAMERA_APK_DIR CAMERA_FORWARDER_SMALI CAMERA_SCENE_PATCHED CAMERA_SCENE_MAKER
     fi
