@@ -131,7 +131,7 @@ jobs:
           ./scripts/make_rom.sh
           
       - name: Split the ROM and publish release assets
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_REPO: ${{ github.repository }}
