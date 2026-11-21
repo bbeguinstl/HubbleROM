@@ -19,7 +19,7 @@
 </p>
 
 # What is HubbleROM?
-HubbleROM ports the Galaxy S26+ One UI 9.5 Beta 1 firmware (`S947BXXS6BZK1`) to the Galaxy S20+ LTE (`y2slte`, Exynos 990), with device-specific kernel and compatibility changes.
+HubbleROM ports the Galaxy S26+ 5G One UI 9.5 Beta 1 firmware (`S947BXXS6BZK1`) to the Galaxy S20+ LTE (`y2slte`, Exynos 990), with device-specific kernel and compatibility changes.
 
 The project builds the required tools, extracts firmware components, applies the y2slte patches and creates a flashable zip.
 
