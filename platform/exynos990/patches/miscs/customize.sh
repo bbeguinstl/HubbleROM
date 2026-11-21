@@ -211,7 +211,7 @@ EOF
             HEX_PATCH "$C2_PLUGIN_32" \
                 "$C2_GLOBAL_32_FROM" "$C2_GLOBAL_32_TO" || return 1
         elif ! xxd -p -c 0 "$C2_PLUGIN_32" | grep -q "$C2_GLOBAL_32_TO"; then
-            ABORT "Missing ARM32 Codec2 global-resource query pattern"
+            LOGW "Skipping ARM32 Codec2 global-resource tuning; this donor uses a different implementation"
         fi
     fi
 
@@ -226,7 +226,7 @@ EOF
             HEX_PATCH "$C2_PLUGIN_64" \
                 "$C2_GLOBAL_64_FROM" "$C2_GLOBAL_64_TO" || return 1
         elif ! xxd -p -c 0 "$C2_PLUGIN_64" | grep -q "$C2_GLOBAL_64_TO"; then
-            ABORT "Missing ARM64 Codec2 global-resource query pattern"
+            LOGW "Skipping ARM64 Codec2 global-resource tuning; this donor uses a different implementation"
         fi
     fi
 
