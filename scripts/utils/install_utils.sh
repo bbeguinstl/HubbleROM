@@ -182,7 +182,7 @@ PRINT_HEADER()
     echo -n 'ui_print("'
     echo -n "HubbleROM $ROM_VERSION for $TARGET_NAME"
     echo    '");'
-    echo    'ui_print("Coded by salvo_giangri @XDAforums");'
+    echo    'ui_print("Coded by salvo_giangri @XDAforums and @bbeguinstl");'
     PRINT_SEPARATOR
     echo -n 'ui_print("'
     echo -n "One UI version: $ONEUI_VERSION"
