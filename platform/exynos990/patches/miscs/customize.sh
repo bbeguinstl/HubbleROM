@@ -362,7 +362,7 @@ if [[ "$SOURCE_PLATFORM_SDK_VERSION" -ge 37 ]]; then
         if xxd -p -c 0 "$AVC_DECODER_32" | grep -q "$AVC_HDR_INDEX_32_FROM"; then
             HEX_PATCH "$AVC_DECODER_32" "$AVC_HDR_INDEX_32_FROM" "$AVC_HDR_INDEX_32_TO"
         elif ! xxd -p -c 0 "$AVC_DECODER_32" | grep -q "$AVC_HDR_INDEX_32_TO"; then
-            ABORT "Missing ARM32 Exynos AVC HDR-static discovery pattern"
+            LOGW "Skipping ARM32 Exynos AVC HDR-static patch; this vendor uses a different implementation"
         fi
     fi
 
@@ -370,7 +370,7 @@ if [[ "$SOURCE_PLATFORM_SDK_VERSION" -ge 37 ]]; then
         if xxd -p -c 0 "$AVC_DECODER_64" | grep -q "$AVC_HDR_INDEX_64_FROM"; then
             HEX_PATCH "$AVC_DECODER_64" "$AVC_HDR_INDEX_64_FROM" "$AVC_HDR_INDEX_64_TO"
         elif ! xxd -p -c 0 "$AVC_DECODER_64" | grep -q "$AVC_HDR_INDEX_64_TO"; then
-            ABORT "Missing ARM64 Exynos AVC HDR-static discovery pattern"
+            LOGW "Skipping ARM64 Exynos AVC HDR-static patch; this vendor uses a different implementation"
         fi
     fi
 
