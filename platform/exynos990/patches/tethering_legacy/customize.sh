@@ -66,6 +66,15 @@ SERVICE_CONNECTIVITY_PATCH="$SERVICE_PATCH_DIR/0001-disable-local-net-event-list
 SERVICE_CONNECTIVITY_LOOPBACK_PATCH="$SERVICE_PATCH_DIR/0002-disable-loopback-event-consumer-on-legacy-bpf.patch"
 SERVICE_CONNECTIVITY_BPFFALLBACK_PATCH="$SERVICE_PATCH_DIR/0003-fallback-to-inert-bpf-maps-on-legacy-bpf.patch"
 SERVICE_CONNECTIVITY_APP_OPT_IN_PATCH="${TETHERING_APP_OPT_IN_PATCH:-}"
+SERVICE_PATCH_OPTIONAL=false
+
+if [[ "${SOURCE_PLATFORM_SDK_VERSION:-0}" -ge 37 ]]; then
+    # Android 17 changed these ConnectivityService smali layouts. Apply the
+    # legacy-kernel patches only when each full context matches this donor;
+    # the NetBpfLoad and netd kernel gates below remain mandatory and checked.
+    SERVICE_PATCH_OPTIONAL=true
+    LOG "- Checking legacy BPF smali patches against the Android 17 donor"
+fi
 
 if [ ! -f "$SERVICE_CONNECTIVITY" ]; then
     LOGE "Tethering service-connectivity.jar not found in apex_payload"
@@ -94,12 +103,12 @@ else
 
     LOG "- Disabling connectivity BPF event consumers on the legacy kernel"
     APPLY_PATCH "system" "system/framework/service-connectivity.jar" \
-        "$SERVICE_CONNECTIVITY_PATCH" || return 1
+        "$SERVICE_CONNECTIVITY_PATCH" "$SERVICE_PATCH_OPTIONAL" || return 1
     APPLY_PATCH "system" "system/framework/service-connectivity.jar" \
-        "$SERVICE_CONNECTIVITY_LOOPBACK_PATCH" || return 1
+        "$SERVICE_CONNECTIVITY_LOOPBACK_PATCH" "$SERVICE_PATCH_OPTIONAL" || return 1
     LOG "- Falling back to inert BPF maps on the legacy kernel"
     APPLY_PATCH "system" "system/framework/service-connectivity.jar" \
-        "$SERVICE_CONNECTIVITY_BPFFALLBACK_PATCH" || return 1
+        "$SERVICE_CONNECTIVITY_BPFFALLBACK_PATCH" "$SERVICE_PATCH_OPTIONAL" || return 1
     if [ -n "$SERVICE_CONNECTIVITY_APP_OPT_IN_PATCH" ]; then
         LOG "- Disabling unsupported satellite app routing"
         APPLY_PATCH "system" "system/framework/service-connectivity.jar" \
@@ -736,6 +745,7 @@ mv -f "$BUILT_APEX.signed" "$CAPEX"
 rm -rf "$PATCH_TMP"
 
 unset CAPEX PATCH_TMP DECODED PAYLOAD LEGACY_KERNEL_VERSION SERVICE_PATCH_DIR \
+    SERVICE_PATCH_OPTIONAL \
     TETHERING_BPF_KEEP_DSCP \
     NETBPFLOAD EXPECTED_SHA256 PATCHED_SHA256 \
     EXPECTED_85_SHA256 BROKEN_PATCHED_85_SHA256 \

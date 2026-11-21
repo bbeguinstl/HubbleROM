@@ -506,7 +506,7 @@ PRINT_HEADER()
         echo    '");'
     fi
     echo    'ui_print("UN1CA developed by the UN1CA maintainers");'
-    echo    'ui_print("UN1CA build system coded by salvo_giangri @XDAforums");'
+    echo    'ui_print("UN1CA build system coded by salvo_giangri @XDAforums and @bbeguinstl");'
     echo    'ui_print("Special thanks to all UN1CA maintainers, contributors and testers");'
     echo    'ui_print("****************************************************");'
     echo -n 'ui_print("'
