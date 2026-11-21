@@ -5,8 +5,8 @@
   <a href="https://github.com/bbeguinstl/HubbleROM/blob/seventeen/LICENSE"><img loading="lazy" src="https://img.shields.io/github/license/bbeguinstl/HubbleROM?style=for-the-badge&logo=github"/></a>
   <a href="https://github.com/bbeguinstl/HubbleROM/commits/seventeen"><img loading="lazy" src="https://img.shields.io/github/last-commit/bbeguinstl/HubbleROM/seventeen?style=for-the-badge"/></a>
   <a href="https://github.com/bbeguinstl/HubbleROM/stargazers"><img loading="lazy" src="https://img.shields.io/github/stars/bbeguinstl/HubbleROM?style=for-the-badge"/></a>
-  <a href="https://github.com/bbeguinstl/HubbleROM/actions/workflows/ci.yml"><img loading="lazy" alt="CI" src="https://img.shields.io/github/actions/workflow/status/bbeguinstl/HubbleROM/ci.yml?branch=seventeen&style=for-the-badge"/></a>
-  <a href="https://github.com/bbeguinstl/HubbleROM/actions/workflows/build.yml"><img loading="lazy" alt="ROM build" src="https://img.shields.io/github/actions/workflow/status/bbeguinstl/HubbleROM/build.yml?branch=seventeen&style=for-the-badge"/></a>
+  <a href="https://github.com/bbeguinstl/HubbleROM/actions/workflows/ci.yml"><img loading="lazy" alt="CI" src="https://img.shields.io/github/actions/workflow/status/bbeguinstl/HubbleROM/ci.yml?branch=seventeen&amp;label=CI&amp;style=for-the-badge"/></a>
+  <a href="https://github.com/bbeguinstl/HubbleROM/releases"><img loading="lazy" alt="Latest ROM release" src="https://img.shields.io/github/v/release/bbeguinstl/HubbleROM?include_prereleases&amp;label=ROM%20release&amp;style=for-the-badge"/></a>
 </p>
 <p align="center">HubbleROM is a custom One UI 9.5 Beta 1 port for the Samsung Galaxy S20+ LTE (y2slte).</p>
 
@@ -26,6 +26,26 @@ The project builds the required tools, extracts firmware components, applies the
 The goal is to bring the current One UI experience to y2slte while keeping its hardware and device support usable.
 
 Contributions, suggestions, bug reports and feature requests are welcome.
+
+# Device support
+
+| Device | Codename | Status |
+| --- | --- | --- |
+| Galaxy S20+ LTE (Exynos) | `y2slte` | Current beta target |
+| Galaxy S20 Ultra (Exynos) | `z3s` | Planned; not supported yet |
+| Galaxy S20 (Exynos) | `x1s` | Planned; not supported yet |
+
+## Adding a device port
+
+Device support is specific to its firmware, partition layout and hardware. To propose a new S20-series target:
+
+1. Add its target configuration and exact stock firmware source/target versions under `target/<codename>/`.
+2. Add and review device-specific kernel, boot/DTBO, partition, fstab, SELinux, vendor and compatibility changes; do not assume y2slte patches apply to another model.
+3. Add the device to the build workflow target matrix and any installer or OTA assertions that need to recognize it.
+4. Build and verify installation, boot, radio, camera, audio, biometrics and OTA behavior on that model; record known limitations.
+5. Update this device table and the release notes only after the target has been built and verified.
+
+`z3s` and `x1s` are planned contributions. They must remain marked as planned until their code and device testing are merged.
 
 # Features
 ### Core features:
