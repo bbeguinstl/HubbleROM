@@ -367,6 +367,12 @@ if $BUILD_ROM; then
         LOG_STEP_OUT
     fi
 
+    if [[ "$TARGET_CODENAME" == "y2s" ]]; then
+        LOG_STEP_IN true "Preparing the LineageOS 24 y2s device base"
+        "$SRC_DIR/scripts/internal/prepare_y2s_lineage_base.sh" || exit 1
+        LOG_STEP_OUT
+    fi
+
     LOG_STEP_IN true "Creating work dir"
     "$SRC_DIR/scripts/internal/create_work_dir.sh" || exit 1
     LOG_STEP_OUT

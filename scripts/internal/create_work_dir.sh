@@ -161,6 +161,30 @@ COPY_TARGET_KERNEL()
         [ -d "$WORK_DIR/kernel" ] && rm -rf "$WORK_DIR/kernel"
     fi
 }
+
+APPLY_LINEAGE_Y2S_VENDOR()
+{
+    [[ "$TARGET_CODENAME" == "y2s" ]] || return 0
+
+    local LINEAGE_BASE="$OUT_DIR/lineage_y2s_24"
+    if [[ ! -d "$LINEAGE_BASE/vendor" ]] || \
+            [[ ! -s "$LINEAGE_BASE/config/vendor_fs_config" ]] || \
+            [[ ! -s "$LINEAGE_BASE/config/vendor_file_contexts" ]]; then
+        ABORT "LineageOS 24 y2s base is missing; run prepare_y2s_lineage_base.sh first"
+        return 1
+    fi
+
+    LOG_STEP_IN "- Replacing the device vendor tree with LineageOS 24"
+    EVAL "rsync -a --mkpath --delete \"$LINEAGE_BASE/vendor/\" \"$WORK_DIR/vendor/\"" || return 1
+    cp -a "$LINEAGE_BASE/config/vendor_fs_config" \
+        "$WORK_DIR/configs/fs_config-vendor" || return 1
+    cp -a "$LINEAGE_BASE/config/vendor_file_contexts" \
+        "$WORK_DIR/configs/file_context-vendor" || return 1
+    if [[ "$TARGET_ASSERT_MODEL" == "SM-G985F" ]]; then
+        SET_PROP "vendor" "ro.product.vendor.model" "SM-G985F"
+    fi
+    LOG_STEP_OUT
+}
 # ]
 
 mkdir -p "$WORK_DIR"
@@ -168,6 +192,7 @@ mkdir -p "$WORK_DIR/configs"
 COPY_SOURCE_FIRMWARE
 COPY_TARGET_FIRMWARE
 COPY_TARGET_KERNEL
+APPLY_LINEAGE_Y2S_VENDOR
 printf '%s' "$FIRMWARE_IDENTITY" > "$WORK_DIR/.firmware_identity"
 
 exit 0

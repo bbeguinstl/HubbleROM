@@ -10,7 +10,7 @@
 </p>
 <p align="center">HubbleROM is a custom One UI 9.5 Beta 1 port for the Samsung Galaxy S20+ LTE (y2slte).</p>
 
-> **Boot notice:** HubbleROM v1.0.0 bootloops on y2s. Use v1.0.1 instead; it includes the netd startup fix.
+> **Boot status:** HubbleROM v1.0.0 and v1.0.1 bootloop on y2slte. The upcoming v1.0.2 build switches the device kernel and vendor base to LineageOS 24; its boot status still needs on-device confirmation.
 
 > **Project base:** HubbleROM continues [ShitStockMod](https://github.com/At30c/ShitStockModOrSomething)’s Galaxy S26+ One UI 9 port for y2slte, updated here to the Galaxy S26+ One UI 9.5 Beta 1 firmware. It retains the [UN1CA](https://github.com/salvogiangri/UN1CA) build system and compatible modules.
 
@@ -21,7 +21,7 @@
 </p>
 
 # What is HubbleROM?
-HubbleROM ports the Galaxy S26+ 5G One UI 9.5 Beta 1 firmware (`S947BXXS6BZK1`) to the Galaxy S20+ LTE (`y2slte`, Exynos 990), with device-specific kernel and compatibility changes.
+HubbleROM ports the Galaxy S26+ 5G One UI 9.5 Beta 1 firmware (`S947BXXS6BZK1`) to the Galaxy S20+ LTE (`y2slte`, Exynos 990). It uses the LineageOS 24 y2s kernel and vendor base, with an LTE-specific DTBO for the G985F.
 
 The project builds the required tools, extracts firmware components, applies the y2slte patches and creates a flashable zip.
 
@@ -52,6 +52,7 @@ Device support is specific to its firmware, partition layout and hardware. To pr
 # Features
 ### Core features:
 - Updated from the ShitStockMod Galaxy S26+ One UI 9 base to Galaxy S26+ One UI 9.5 Beta 1 (`S947BXXS6BZK1`)
+- LineageOS 24 y2s kernel and vendor base, with a y2slte LTE DTBO
 - Ported for Samsung Galaxy S20+ LTE (`y2slte`, Exynos 990)
 - EROFS powered
 - Galaxy S26+ wallpapers and sounds included

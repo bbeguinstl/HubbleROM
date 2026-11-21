@@ -449,3 +449,39 @@ REPLACE_KERNEL_BINARIES()
 # ]
 
 REPLACE_KERNEL_BINARIES
+
+INSTALL_LINEAGE_Y2S_KERNEL_BASE()
+{
+    [[ "$TARGET_CODENAME" == "y2s" ]] || return 0
+
+    local LINEAGE_BASE="$OUT_DIR/lineage_y2s_24"
+    if [[ ! -s "$LINEAGE_BASE/boot.img" || ! -s "$LINEAGE_BASE/dtbo.img" ]]; then
+        ABORT "LineageOS 24 y2s boot images are missing"
+        return 1
+    fi
+
+    LOG "- Using the LineageOS 24 y2s boot and DTBO images"
+    cp -f "$LINEAGE_BASE/boot.img" "$WORK_DIR/kernel/boot.img" || return 1
+    cp -f "$LINEAGE_BASE/dtbo.img" "$WORK_DIR/kernel/dtbo.img" || return 1
+
+    # The official y2s OTA has no LTE-specific DTBO. Keep the y2slte overlay
+    # generated above for SM-G985F while using the matching LineageOS kernel.
+    if [[ "$TARGET_ASSERT_MODEL" == *"SM-G985F"* ]] &&
+            [[ ! -s "$WORK_DIR/kernel/dtbo_lte.img" ]]; then
+        ABORT "The y2slte LTE DTBO image is missing"
+        return 1
+    fi
+
+    if [[ "$(GET_FILE_SHA256 "$WORK_DIR/kernel/boot.img")" != \
+            "$(GET_FILE_SHA256 "$LINEAGE_BASE/boot.img")" ]]; then
+        ABORT "LineageOS boot image copy failed checksum verification"
+        return 1
+    fi
+    if [[ "$(GET_FILE_SHA256 "$WORK_DIR/kernel/dtbo.img")" != \
+            "$(GET_FILE_SHA256 "$LINEAGE_BASE/dtbo.img")" ]]; then
+        ABORT "LineageOS DTBO image copy failed checksum verification"
+        return 1
+    fi
+}
+
+INSTALL_LINEAGE_Y2S_KERNEL_BASE

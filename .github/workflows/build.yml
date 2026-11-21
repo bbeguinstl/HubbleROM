@@ -1,6 +1,9 @@
 name: Build
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       build_type:
@@ -54,11 +57,11 @@ jobs:
         run: |
           sudo apt update
           DEBIAN_FRONTEND=noninteractive sudo apt install -yq \
-            attr ccache clang ffmpeg libbrotli-dev libbz2-dev \
+            attr brotli ccache clang ffmpeg libbrotli-dev libbz2-dev \
             libgtest-dev libprotobuf-dev libunwind-dev libpcre2-dev \
             libzstd-dev linux-modules-extra-$(uname -r) lld protobuf-compiler webp \
             build-essential g++-aarch64-linux-gnu gcc-aarch64-linux-gnu \
-            python-is-python3 python3 wget curl
+            python-is-python3 python3 wget curl unzip
 
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source "$HOME/.cargo/env"
@@ -132,7 +135,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_REPO: ${{ github.repository }}
-          BUILD_TYPE: ${{ github.event.inputs.build_type }}
+          BUILD_TYPE: ${{ github.event.inputs.build_type || 'release' }}
         run: |
           mkdir -p split_tmp
 
@@ -173,7 +176,7 @@ jobs:
               RELEASE_DATA=$(jq -n \
                 --arg tag "$TAG_NAME" \
                 --arg name "$RELEASE_NAME" \
-                --arg body "Flashable ZIP: $FILE_NAME. GitHub assets are split into six parts because of the per-file size limit. Download every .part_XX asset and follow the attached HOWTO file to reassemble and verify the ZIP." \
+                --arg body "Flashable ZIP: $FILE_NAME. GitHub assets are split into six parts because of the per-file size limit. Download every .part_XX asset and follow the attached HOWTO file to reassemble and verify the ZIP. Known issue: HubbleROM v1.0.0 and v1.0.1 bootloop on y2slte; this release switches the device kernel and vendor base to LineageOS 24." \
                 '{ tag_name: $tag, name: $name, body: $body, draft: false, prerelease: true }')
 
               RELEASE_RESPONSE=$(curl -s -X POST \
