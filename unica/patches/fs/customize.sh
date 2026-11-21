@@ -67,8 +67,7 @@ EXTRACT_RAMDISK_CPIO()
     local format="$2"
     local destination="$3"
     local errors="$TMP_DIR/cpio-extract.errors"
-    local node_path
-    local config_path
+    local source_cpio="$TMP_DIR/ramdisk-source.cpio"
     local had_errexit=0
     local -a pipe_status=()
 
@@ -97,44 +96,76 @@ EXTRACT_RAMDISK_CPIO()
             '^cpio: (\./)?dev/(null|console|urandom|kmsg): Cannot mknod: Operation not permitted$' \
             "$errors"; then
             RAMDISK_NODES_FILE="$TMP_DIR/ramdisk-nodes"
-            : > "$RAMDISK_NODES_FILE" || return 1
-            while IFS= read -r node_path; do
-                case "${node_path#./}" in
-                    dev/null)
-                        printf 'nod dev/null 0666 0 0 c 1 3\n' >> "$RAMDISK_NODES_FILE"
-                        ;;
-                    dev/console)
-                        printf 'nod dev/console 0600 0 0 c 5 1\n' >> "$RAMDISK_NODES_FILE"
-                        ;;
-                    dev/urandom)
-                        printf 'nod dev/urandom 0666 0 0 c 1 9\n' >> "$RAMDISK_NODES_FILE"
-                        ;;
-                    dev/kmsg)
-                        printf 'nod dev/kmsg 0600 0 0 c 1 11\n' >> "$RAMDISK_NODES_FILE"
-                        ;;
-                esac
-            done < <(sed -nE \
-                's/^cpio: (\.\/)?(dev\/(null|console|urandom|kmsg)): Cannot mknod: Operation not permitted$/\2/p' \
-                "$errors")
-            [[ -s "$RAMDISK_NODES_FILE" ]] || {
-                cat "$errors" >&2
-                return 1
-            }
             RAMDISK_FS_CONFIG="$TMP_DIR/ramdisk-fs-config"
-            python3 - "$destination" "$RAMDISK_NODES_FILE" "$RAMDISK_FS_CONFIG" <<'PY'
-import os
+            : > "$RAMDISK_NODES_FILE" || return 1
+            : > "$RAMDISK_FS_CONFIG" || return 1
+            if [[ "$format" == "gz" ]]; then
+                gzip -dc "$archive" > "$source_cpio" || return 1
+            else
+                lz4 -d "$archive" -c > "$source_cpio" || return 1
+            fi
+            python3 - "$destination" "$source_cpio" "$errors" \
+                "$RAMDISK_NODES_FILE" "$RAMDISK_FS_CONFIG" <<'PY'
+import re
 import stat
 import sys
 from pathlib import Path
 
-root, nodes_file, output = map(Path, sys.argv[1:])
+root, source_cpio, errors_file, nodes_file, config_file = map(Path, sys.argv[1:])
+expected = {"dev/null", "dev/console", "dev/urandom", "dev/kmsg"}
+missing = set()
+for line in errors_file.read_text(encoding="utf-8").splitlines():
+    match = re.fullmatch(
+        r"cpio: (?:\./)?(dev/(?:null|console|urandom|kmsg)): Cannot mknod: Operation not permitted",
+        line,
+    )
+    if not match:
+        raise SystemExit(f"Unexpected cpio extraction error: {line}")
+    missing.add(match.group(1))
+if not missing:
+    raise SystemExit("cpio failed without identifying an expected device node")
+
+archive = source_cpio.read_bytes()
+offset = 0
+nodes = {}
+while offset + 110 <= len(archive):
+    header = archive[offset : offset + 110]
+    if header[:6] not in (b"070701", b"070702"):
+        raise SystemExit(f"Invalid newc CPIO header at offset {offset}")
+    fields = [int(header[i : i + 8], 16) for i in range(6, 110, 8)]
+    mode, uid, gid, size, rdevmajor, rdevminor, namesize = (
+        fields[1], fields[2], fields[3], fields[6], fields[9], fields[10], fields[11]
+    )
+    offset += 110
+    name = archive[offset : offset + namesize - 1].decode("utf-8", "strict")
+    offset = (offset + namesize + 3) & ~3
+    if name == "TRAILER!!!":
+        break
+    while name.startswith("./"):
+        name = name[2:]
+    if name in expected:
+        if size != 0 or not (stat.S_ISCHR(mode) or stat.S_ISBLK(mode)):
+            raise SystemExit(f"Expected a device node in source CPIO: {name}")
+        nodes[name] = (
+            stat.S_IMODE(mode),
+            uid,
+            gid,
+            "c" if stat.S_ISCHR(mode) else "b",
+            rdevmajor,
+            rdevminor,
+        )
+    offset = (offset + size + 3) & ~3
+
 entries = {}
-for line in nodes_file.read_text(encoding="utf-8").splitlines():
-    fields = line.split()
-    if len(fields) != 8 or fields[0] != "nod":
-        raise SystemExit(f"Invalid mkbootfs node entry: {line}")
-    _, path, mode, uid, gid, *_ = fields
-    entries[path] = (int(uid), int(gid), int(mode, 8))
+node_lines = []
+for name in sorted(missing):
+    if name not in nodes:
+        raise SystemExit(f"Could not find original device-node metadata: {name}")
+    mode, uid, gid, kind, major, minor = nodes[name]
+    node_lines.append(
+        f"nod {name} {mode:04o} {uid} {gid} {kind} {major} {minor}"
+    )
+    entries[name] = (uid, gid, mode)
 
 for path in root.rglob("*"):
     name = path.relative_to(root).as_posix()
@@ -152,9 +183,10 @@ lines = [
     for name, (uid, gid, mode) in sorted(entries.items())
 ]
 lines.append(" 0 0 0755")
-output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+nodes_file.write_text("\n".join(node_lines) + "\n", encoding="utf-8")
+config_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
-            [[ -s "$RAMDISK_FS_CONFIG" ]] || return 1
+            [[ -s "$RAMDISK_NODES_FILE" && -s "$RAMDISK_FS_CONFIG" ]] || return 1
             LOGW "Preserving ramdisk device nodes through mkbootfs"
         else
             cat "$errors" >&2
