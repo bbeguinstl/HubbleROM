@@ -1,0 +1,3 @@
+The One UI 9.5 donor does not include MotionPhoto.apk on y2s. Skip this optional
+OMX color-format patch when the APK is absent; keep it enabled on donors that
+ship the target package.

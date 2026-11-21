@@ -82,6 +82,15 @@ APPLY_SMALI_PATCHES()
         return 1
     fi
 
+    if [ ! -f "$WORK_DIR/$PARTITION/$TARGET" ]; then
+        if [ -f "$PATCHES_PATH/$TARGET/optional" ]; then
+            LOGW "Skipping optional smali patch target /$TARGET because the APK/JAR is absent from this donor"
+            return 0
+        fi
+        LOGE "Smali patch target is missing: /$TARGET"
+        return 1
+    fi
+
     while IFS= read -r p; do
         local FILE="$TARGET"
         if [[ "$PARTITION" != "system" ]]; then
