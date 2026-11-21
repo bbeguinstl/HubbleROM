@@ -10,6 +10,8 @@
 </p>
 <p align="center">HubbleROM is a custom One UI 9.5 Beta 1 port for the Samsung Galaxy S20+ LTE (y2slte).</p>
 
+> **Boot notice:** HubbleROM v1.0.0 bootloops on y2s. Use v1.0.1 instead; it includes the netd startup fix.
+
 > **Project base:** HubbleROM continues [ShitStockMod](https://github.com/At30c/ShitStockModOrSomething)’s Galaxy S26+ One UI 9 port for y2slte, updated here to the Galaxy S26+ One UI 9.5 Beta 1 firmware. It retains the [UN1CA](https://github.com/salvogiangri/UN1CA) build system and compatible modules.
 
 <p align="center">
