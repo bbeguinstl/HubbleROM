@@ -29,9 +29,16 @@ APPLY_PATCH "system" "system/framework/knoxsdk.jar" \
     "$MODPATH/knoxsdk.jar/0001-Introduce-KnoxPatchHooks.patch"
 
 # Bypass ICD verification
-SMALI_PATCH "system" "system/framework/samsungkeystoreutils.jar" \
-    "smali/com/samsung/android/security/keystore/AttestParameterSpec.smali" "return" \
-    'isVerifiableIntegrity()Z' 'true'
+ATTEST_PARAMETER_SMALI="$APKTOOL_DIR/system/framework/samsungkeystoreutils.jar/smali/com/samsung/android/security/keystore/AttestParameterSpec.smali"
+if [ -f "$ATTEST_PARAMETER_SMALI" ] && \
+        grep -Fq '.method public isVerifiableIntegrity()Z' "$ATTEST_PARAMETER_SMALI"; then
+    SMALI_PATCH "system" "system/framework/samsungkeystoreutils.jar" \
+        "smali/com/samsung/android/security/keystore/AttestParameterSpec.smali" "return" \
+        'isVerifiableIntegrity()Z' 'true'
+else
+    LOG "Attestation integrity hook is absent in this beta; skipping"
+fi
+unset ATTEST_PARAMETER_SMALI
 # The One UI 9.5 beta changed the ICD attestation flow. Its older reflected
 # mVerifiableIntegrity patch no longer matches; keep the donor implementation.
 LOG "- Skipping legacy ICD attestation patch (not present in this beta)"

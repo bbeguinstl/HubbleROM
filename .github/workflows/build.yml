@@ -168,6 +168,32 @@ jobs:
         run: |
           source ./buildenv.sh ${{ matrix.target }}
           ./scripts/make_rom.sh --use-apk-cache
+
+      - name: Save ROM tools cache after a failed build
+        if: failure()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            out/tools/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-rom-tools-${{ steps.rom-tools-cache-key.outputs.key }}
+
+      - name: Save APK cache after a failed build
+        if: failure()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            out/target/y2s/apk_cache
+            out/target/y2s/apk_decode_cache
+          key: ${{ runner.os }}-rom-y2s-apks-${{ steps.rom-tools-cache-key.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Save firmware cache after a failed build
+        if: failure()
+        uses: actions/cache/save@v4
+        with:
+          path: out/odin
+          key: ${{ runner.os }}-rom-y2s-firmware-${{ hashFiles('unica/configs/essi.sh', 'target/y2slte/config.sh', 'scripts/download_fw.sh') }}
           
       - name: Split the ROM and publish release assets
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
