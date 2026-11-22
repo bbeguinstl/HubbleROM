@@ -122,6 +122,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-rom-y2s-apks-${{ steps.rom-tools-cache-key.outputs.key }}-
 
+      - name: Cache downloaded stock firmware
+        uses: actions/cache@v4
+        with:
+          path: out/odin
+          key: ${{ runner.os }}-rom-y2s-firmware-${{ hashFiles('unica/configs/essi.sh', 'target/y2slte/config.sh', 'scripts/download_fw.sh') }}
+
       - name: Build dependencies
         run: |
           source ./buildenv.sh ${{ matrix.target }}
