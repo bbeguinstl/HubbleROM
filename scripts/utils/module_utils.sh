@@ -28,6 +28,12 @@ APPLY_PATCH()
     local PATCH="$3"
     local OPTIONAL="${4:-false}"
 
+    # Modules that apply patches directly from customize.sh do not pass
+    # through APPLY_SMALI_PATCHES, so honor the same per-target marker here.
+    # This keeps beta donors buildable when an explicitly optional patch has
+    # drifted, regardless of which module entry point invokes it.
+    [ -f "$(dirname "$PATCH")/optional" ] && OPTIONAL=true
+
     if ! IS_VALID_PARTITION_NAME "$PARTITION"; then
         LOGE "\"$PARTITION\" is not a valid partition name"
         return 1
@@ -42,7 +48,13 @@ APPLY_PATCH()
         FILE="${FILE:1}"
     done
 
-    DECODE_APK "$PARTITION" "$FILE" || return 1
+    if ! DECODE_APK "$PARTITION" "$FILE"; then
+        if [[ "$OPTIONAL" == "true" ]]; then
+            LOGW "Skipping optional patch because its target is absent from this donor: $(basename "$PATCH")"
+            return 0
+        fi
+        return 1
+    fi
 
     LOG "- Applying \"$(grep "^Subject:" "$PATCH" | sed "s/.*PATCH] //")\" to /$PARTITION/$FILE"
 
