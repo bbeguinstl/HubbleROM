@@ -1618,27 +1618,14 @@ if [[ "$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION" != "$TARGET_WLAN_CONFIG_C
         if [[ -z "$BTM_CONTROLLER" ]]; then
             ABORT "Failed to locate BtmController.smali in SecSettings.apk"
         fi
-        BTM_STATUS_CONTENT="$(sed -n \
-            '/^\.method.*getAvailabilityStatus()I$/,/^\.end method$/p' \
-            "$APKTOOL_DIR/system/priv-app/SecSettings/SecSettings.apk/$BTM_CONTROLLER")"
-        BTM_SOURCE_CONST="$(grep -E '^[[:space:]]*const/(4|16) [vp][0-9]+, 0x[0-9a-fA-F]+$' \
-            <<< "$BTM_STATUS_CONTENT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | head -n 1)"
-        BTM_SOURCE_HEX="$(printf '%x' "$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION")"
-        BTM_TARGET_HEX="$(printf '%x' "$TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION")"
-        if [[ "$BTM_SOURCE_CONST" == *", 0x$BTM_SOURCE_HEX" ]]; then
-            BTM_TARGET_CONST="${BTM_SOURCE_CONST%,*}, 0x$BTM_TARGET_HEX"
-            SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
-                "$BTM_CONTROLLER" "replace" \
-                "getAvailabilityStatus()I" \
-                "$BTM_SOURCE_CONST" \
-                "$BTM_TARGET_CONST"
-        elif [[ "$BTM_SOURCE_CONST" == *", 0x$BTM_TARGET_HEX" ]]; then
-            LOG "- Connection-personalization availability is already set to $TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION"
-        else
-            ABORT "Unable to resolve the connection-personalization availability in BtmController"
-            return 1
-        fi
-        unset BTM_STATUS_CONTENT BTM_SOURCE_CONST BTM_SOURCE_HEX BTM_TARGET_HEX BTM_TARGET_CONST
+        # BtmController's donor literal varies by One UI release (some builds
+        # use const-string plus Integer.parseInt, others use an integer const).
+        # This method only exposes the configured availability value, so return
+        # the target value directly instead of depending on a donor literal.
+        SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
+            "$BTM_CONTROLLER" "return" \
+            "getAvailabilityStatus()I" \
+            "$TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION"
 
         if [[ "$SOURCE_WLAN_CONFIG_DYNAMIC_SWITCH" != "$TARGET_WLAN_CONFIG_DYNAMIC_SWITCH" ]]; then
             SMALI_PATCH "system" "system/framework/semwifi-service.jar" \
