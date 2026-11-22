@@ -82,7 +82,12 @@ APPLY_SMALI_PATCHES()
         return 1
     fi
 
-    if [ ! -f "$WORK_DIR/$PARTITION/$TARGET" ]; then
+    local TARGET_FILE="$WORK_DIR/$TARGET"
+    if [[ "$PARTITION" == "system_ext" ]] && ! $TARGET_OS_BUILD_SYSTEM_EXT_PARTITION; then
+        TARGET_FILE="$WORK_DIR/system/system/system_ext/${TARGET#system_ext/}"
+    fi
+
+    if [ ! -f "$TARGET_FILE" ]; then
         if [ -f "$PATCHES_PATH/$TARGET/optional" ]; then
             LOGW "Skipping optional smali patch target /$TARGET because the APK/JAR is absent from this donor"
             return 0
