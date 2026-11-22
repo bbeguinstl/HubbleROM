@@ -141,6 +141,7 @@ jobs:
             ${{ runner.os }}-rom-y2s-apks-${{ steps.rom-tools-cache-key.outputs.key }}-
 
       - name: Cache downloaded stock firmware
+        id: firmware-cache
         uses: actions/cache@v4
         with:
           path: out/firmware-cache
@@ -214,7 +215,7 @@ jobs:
           key: ${{ runner.os }}-rom-y2s-apks-${{ steps.rom-tools-cache-key.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Save firmware cache after a failed build
-        if: failure()
+        if: ${{ failure() && steps.firmware-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v4
         with:
           path: out/firmware-cache
