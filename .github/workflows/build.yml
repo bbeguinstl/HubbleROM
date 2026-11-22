@@ -89,6 +89,39 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      - name: Compute ROM tools cache key
+        id: rom-tools-cache-key
+        run: |
+          TOOL_CACHE_KEY="$( {
+            git submodule status --recursive
+            sha256sum scripts/build_dependencies.sh \
+              external/patches/apktool/0001-feat-support-aapt-optimization.patch
+            clang --version | sed -n '1p'
+            cmake --version | sed -n '1p'
+            rustc --version
+            java -version 2>&1 | sed -n '1p'
+          } | sha256sum | cut -c1-20)"
+          echo "key=$TOOL_CACHE_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Cache built ROM tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            out/tools/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-rom-tools-${{ steps.rom-tools-cache-key.outputs.key }}
+
+      - name: Cache decoded and built APKs
+        uses: actions/cache@v4
+        with:
+          path: |
+            out/target/y2s/apk_cache
+            out/target/y2s/apk_decode_cache
+          key: ${{ runner.os }}-rom-y2s-apks-${{ steps.rom-tools-cache-key.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ runner.os }}-rom-y2s-apks-${{ steps.rom-tools-cache-key.outputs.key }}-
+
       - name: Build dependencies
         run: |
           source ./buildenv.sh ${{ matrix.target }}
@@ -128,7 +161,7 @@ jobs:
       - name: Build ROM
         run: |
           source ./buildenv.sh ${{ matrix.target }}
-          ./scripts/make_rom.sh
+          ./scripts/make_rom.sh --use-apk-cache
           
       - name: Split the ROM and publish release assets
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
