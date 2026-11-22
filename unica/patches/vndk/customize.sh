@@ -1,6 +1,22 @@
 TARGET_VNDK_VERSION="$TARGET_BOARD_API_LEVEL"
 TARGET_FW_SOURCE="$(cut -d "/" -f 1,2 <<< "$TARGET_FIRMWARE")"
 
+# y2s uses a LineageOS 24 vendor tree on Android 17 instead of its original
+# Android 13 Samsung vendor. Do not replace that vendor's matching framework
+# VNDK configuration with the legacy v30 APEX selected by the stock target's
+# board API level.
+LINEAGE_VENDOR_SDK=""
+if [[ "$TARGET_CODENAME" == "y2s" ]] && \
+        [[ -d "$OUT_DIR/lineage_y2s_24/vendor" ]]; then
+    LINEAGE_VENDOR_SDK="$(sed -n 's/^ro.vendor.build.version.sdk=//p' \
+        "$OUT_DIR/lineage_y2s_24/vendor/build.prop" | head -n 1)"
+    if [[ "$LINEAGE_VENDOR_SDK" =~ ^[0-9]+$ ]] && \
+            [ "$LINEAGE_VENDOR_SDK" -ge 35 ]; then
+        TARGET_VNDK_VERSION="$LINEAGE_VENDOR_SDK"
+        LOG "- Preserving the Android $LINEAGE_VENDOR_SDK LineageOS vendor VNDK configuration"
+    fi
+fi
+
 if $TARGET_OS_BUILD_SYSTEM_EXT_PARTITION; then
     SYS_EXT_DIR="$WORK_DIR/system_ext"
 else
@@ -267,6 +283,7 @@ elif [ "$SOURCE_BOARD_API_LEVEL" -le 34 ]; then
 fi
 
 unset TARGET_CORE_VARIANT TARGET_FW_SOURCE TARGET_VNDK_VERSION
+unset LINEAGE_VENDOR_SDK
 unset SYS_EXT_DIR VINTF_MANIFEST VNDK_APEX VNDK_APEX_REL
 unset -f ADD_TARGET_VNDK_APEX PATCH_VNDK_CGROUP_RUNTIME PATCH_VNDK_MANIFEST \
     VALIDATE_LEGACY_VNDK
