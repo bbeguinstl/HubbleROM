@@ -32,7 +32,7 @@ diff --git a/smali_classes2/com/android/server/pm/InstallPackageHelper.smali b/s
      sget-boolean p1, Lcom/samsung/android/rune/PMRune;->PM_BADGE_ON_MONETIZED_APP_SUPPORTED:Z
  
      if-eqz p1, :cond_0
-@@ -191,6 +205,34 @@
+@@ -191,3 +205,31 @@
  
      :cond_0
      return-void
@@ -64,9 +64,6 @@ diff --git a/smali_classes2/com/android/server/pm/InstallPackageHelper.smali b/s
 +
 +    :cond_0
 +    return-object v1
- .end method
- 
- .method public static hasLauncherEntry(Ljava/util/List;)Z
 @@ -22925,7 +22967,7 @@
  .end method
  
