@@ -140,13 +140,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-rom-y2s-apks-${{ steps.rom-tools-cache-key.outputs.key }}-
 
-      - name: Cache downloaded stock firmware
-        id: firmware-cache
-        uses: actions/cache@v4
-        with:
-          path: out/firmware-cache
-          key: ${{ runner.os }}-rom-y2s-firmware-${{ hashFiles('unica/configs/essi.sh', 'target/y2slte/config.sh', 'scripts/download_fw.sh') }}
-
       - name: Cache prepared LineageOS 24 y2s base
         id: lineage-y2s-cache
         uses: actions/cache@v4
@@ -214,13 +207,6 @@ jobs:
             out/target/y2s/apk_decode_cache
           key: ${{ runner.os }}-rom-y2s-apks-${{ steps.rom-tools-cache-key.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-      - name: Save firmware cache after a failed build
-        if: ${{ failure() && steps.firmware-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v4
-        with:
-          path: out/firmware-cache
-          key: ${{ runner.os }}-rom-y2s-firmware-${{ hashFiles('unica/configs/essi.sh', 'target/y2slte/config.sh', 'scripts/download_fw.sh') }}
-          
       - name: Check y2s LineageOS base after failure
         if: failure()
         id: lineage-y2s-base-state
