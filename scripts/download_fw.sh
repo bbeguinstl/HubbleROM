@@ -125,6 +125,12 @@ VERIFY_ODIN_PACKAGES()
 
 PREPARE_SCRIPT "$@"
 
+# Keep the decrypted firmware archives separately from ODIN_DIR. extract_fw.sh
+# removes the extracted BL/AP/CP/CSC files from ODIN_DIR on CI to save disk
+# space, while these ZIPs are small enough to reuse through the Actions cache.
+FIRMWARE_CACHE_DIR="$OUT_DIR/firmware-cache"
+mkdir -p "$FIRMWARE_CACHE_DIR"
+
 for i in "${FIRMWARES[@]}"; do
     PARSE_FIRMWARE_STRING "$i" || exit 1
 
@@ -174,38 +180,64 @@ for i in "${FIRMWARES[@]}"; do
         fi
     fi
 
-    LOG "- Downloading firmware..."
-    [ -f "$ODIN_DIR/${MODEL}_${CSC}/.downloaded" ] && rm -rf "$ODIN_DIR/${MODEL}_${CSC}"
     mkdir -p "$ODIN_DIR/${MODEL}_${CSC}"
     find -L "$ODIN_DIR/${MODEL}_${CSC}" -maxdepth 1 -type f -name "*.zip" -delete
 
-    COUNT=1
-    while true; do
-        "$TOOLS_DIR/bin/samloader" download \
-            --model "$MODEL" \
-            --region "$CSC" \
-            --version "$DOWNLOAD_FIRMWARE" \
-            --out-dir "$ODIN_DIR/${MODEL}_${CSC}" || exit 1
+    CACHED_ZIP="$FIRMWARE_CACHE_DIR/${MODEL}_${CSC}.zip"
+    CACHED_VERSION="$FIRMWARE_CACHE_DIR/${MODEL}_${CSC}.version"
+    ZIP_FILE=""
+    REUSED_CACHED_ZIP=false
+    if [ -f "$CACHED_ZIP" ] && \
+            [ "$(cat "$CACHED_VERSION" 2>/dev/null)" = "$DOWNLOAD_FIRMWARE" ]; then
+        LOG "- Reusing cached firmware archive..."
+        ZIP_FILE="$ODIN_DIR/${MODEL}_${CSC}/$(basename "$CACHED_ZIP")"
+        cp -f -- "$CACHED_ZIP" "$ZIP_FILE" || exit 1
+        REUSED_CACHED_ZIP=true
+    else
+        LOG "- Downloading firmware..."
+        [ -f "$ODIN_DIR/${MODEL}_${CSC}/.downloaded" ] && rm -rf "$ODIN_DIR/${MODEL}_${CSC}"
+        mkdir -p "$ODIN_DIR/${MODEL}_${CSC}"
 
-        ZIP_FILE="$(find -L "$ODIN_DIR/${MODEL}_${CSC}" -maxdepth 1 -type f -name "*.zip" | head -n 1)"
-        if [ ! "$ZIP_FILE" ] || [ ! -f "$ZIP_FILE" ]; then
-            if [ "$COUNT" -gt 10 ]; then
-                LOG "\033[0;31m! Download failed after 10 retries\033[0m"
-                exit 1
+        COUNT=1
+        while true; do
+            "$TOOLS_DIR/bin/samloader" download \
+                --model "$MODEL" \
+                --region "$CSC" \
+                --version "$DOWNLOAD_FIRMWARE" \
+                --out-dir "$ODIN_DIR/${MODEL}_${CSC}" || exit 1
+
+            ZIP_FILE="$(find -L "$ODIN_DIR/${MODEL}_${CSC}" -maxdepth 1 -type f -name "*.zip" | head -n 1)"
+            if [ ! "$ZIP_FILE" ] || [ ! -f "$ZIP_FILE" ]; then
+                if [ "$COUNT" -gt 10 ]; then
+                    LOG "\033[0;31m! Download failed after 10 retries\033[0m"
+                    exit 1
+                fi
+
+                LOG "\033[0;31m! [Attempt: $COUNT] Download failed, retrying in 5 seconds...\033[0m"
+                sleep 5
+                ((COUNT++))
+            else
+                break
             fi
+        done
 
-            LOG "\033[0;31m! [Attempt: $COUNT] Download failed, retrying in 5 seconds...\033[0m"
-            sleep 5
-            ((COUNT++))
-        else
-            break
-        fi
-    done
+    fi
 
     LOG "- Extracting $(basename "$ZIP_FILE")..."
-    EVAL "unzip -o \"$ZIP_FILE\" -d \"$ODIN_DIR/${MODEL}_${CSC}\" && rm -rf \"$ZIP_FILE\"" || exit 1
+    EVAL "unzip -o \"$ZIP_FILE\" -d \"$ODIN_DIR/${MODEL}_${CSC}\"" || exit 1
 
     VERIFY_ODIN_PACKAGES
+
+    if $REUSED_CACHED_ZIP; then
+        rm -f -- "$ZIP_FILE"
+    else
+        # Move the compact archive into the cache only after its extracted
+        # Odin packages pass checksum verification, so a broken download
+        # cannot poison the persistent Actions cache.
+        mv -- "$ZIP_FILE" "$CACHED_ZIP.tmp" || exit 1
+        mv -f -- "$CACHED_ZIP.tmp" "$CACHED_ZIP" || exit 1
+        printf '%s' "$DOWNLOAD_FIRMWARE" > "$CACHED_VERSION"
+    fi
 
     echo -n "$DOWNLOAD_FIRMWARE" > "$ODIN_DIR/${MODEL}_${CSC}/.downloaded"
 
