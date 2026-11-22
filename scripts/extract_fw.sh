@@ -124,7 +124,9 @@ EXTRACT_OS_PARTITIONS()
 
         LOG "- Generating fs_config/file_context for $(basename "$f")..."
 
-        EVAL "sudo find \"$TMP_DIR\" | sudo xargs -I \"{}\" -P \"$(nproc)\" stat -c \"%n %u %g %a capabilities=0x0\" \"{}\" > \"$FW_DIR/${MODEL}_${CSC}/fs_config-$PARTITION\"" || exit 1
+        # GNU find can emit the same uid/gid/mode fields directly. Avoid
+        # starting one `stat` process per filesystem entry during extraction.
+        EVAL "sudo find \"$TMP_DIR\" -printf '%p %U %G %m capabilities=0x0\\n' > \"$FW_DIR/${MODEL}_${CSC}/fs_config-$PARTITION\"" || exit 1
         EVAL "sudo find \"$TMP_DIR\" | sudo xargs -I \"{}\" -P \"$(nproc)\" sh -c 'echo \"\$1 \$(getfattr -n security.selinux --only-values -h --absolute-names \"\$1\")\"' \"sh\" \"{}\" > \"$FW_DIR/${MODEL}_${CSC}/file_context-$PARTITION\"" || exit 1
         sort -o "$FW_DIR/${MODEL}_${CSC}/fs_config-$PARTITION" "$FW_DIR/${MODEL}_${CSC}/fs_config-$PARTITION"
         sort -o "$FW_DIR/${MODEL}_${CSC}/file_context-$PARTITION" "$FW_DIR/${MODEL}_${CSC}/file_context-$PARTITION"
