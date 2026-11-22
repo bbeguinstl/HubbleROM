@@ -184,6 +184,8 @@ jobs:
           swapon --show
       
       - name: Build ROM
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           source ./buildenv.sh ${{ matrix.target }}
           ./scripts/make_rom.sh --use-apk-cache

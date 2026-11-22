@@ -16,14 +16,25 @@ if [ -d "$KERNELSU_DIR" ]; then
         ABORT "Cannot derive a KernelSU-Next release from the kernel tag \"$KERNELSU_TAG\""
     fi
 
-    KERNELSU_ASSET="$(curl -fsSL "https://api.github.com/repos/KernelSU-Next/KernelSU-Next/releases/tags/$KERNELSU_RELEASE" | \
-        python3 -I -c '
+    KERNELSU_API_ARGS=(
+        -fsSL
+        --retry 3
+        --retry-all-errors
+        -H "Accept: application/vnd.github+json"
+    )
+    if [ "${GH_TOKEN:-}" ]; then
+        KERNELSU_API_ARGS+=(-H "Authorization: Bearer $GH_TOKEN")
+    fi
+    KERNELSU_RELEASE_DATA="$(curl "${KERNELSU_API_ARGS[@]}" \
+        "https://api.github.com/repos/KernelSU-Next/KernelSU-Next/releases/tags/$KERNELSU_RELEASE")" || \
+        ABORT "Failed to query the KernelSU-Next $KERNELSU_RELEASE release from GitHub"
+    KERNELSU_ASSET="$(python3 -I -c '
 import json, re, sys
 for a in json.load(sys.stdin).get("assets", []):
     if re.fullmatch(r"KernelSU_Next_v[0-9.]+_[0-9]+-release\.apk", a["name"]):
         print(a["browser_download_url"], (a.get("digest") or "").removeprefix("sha256:"))
         break
-')"
+' <<< "$KERNELSU_RELEASE_DATA")"
     KERNELSU_URL="$(cut -d " " -f 1 <<< "$KERNELSU_ASSET")"
     KERNELSU_SHA256="$(cut -d " " -f 2 -s <<< "$KERNELSU_ASSET")"
     if [ ! "$KERNELSU_URL" ] || [ ! "$KERNELSU_SHA256" ]; then
@@ -41,7 +52,9 @@ else
     LOG "- No KernelSU-Next kernel tree for $TARGET_PLATFORM; skipping the manager app"
     rm -rf "$WORK_DIR/system/system/preload/KernelSU-Next"
 fi
-unset KERNELSU_DIR KERNELSU_TAG KERNELSU_RELEASE KERNELSU_ASSET KERNELSU_URL KERNELSU_SHA256
+unset KERNELSU_DIR KERNELSU_TAG KERNELSU_RELEASE KERNELSU_ASSET KERNELSU_URL \
+    KERNELSU_SHA256 KERNELSU_RELEASE_DATA KERNELSU_API_ARGS
+mkdir -p "$WORK_DIR/system/system/preload"
 
 while IFS= read -r i; do
     i="${i//$WORK_DIR\/system\//}"
@@ -61,9 +74,27 @@ done <<< "$(find "$WORK_DIR/system/system/preload")"
 
 # Samsung Internet Browser
 # https://play.google.com/store/apps/details?id=com.sec.android.app.sbrowser
-LOG "- Downloading Samsung Internet app"
-DOWNLOAD_FILE "$(GET_GALAXY_STORE_DOWNLOAD_URL "com.sec.android.app.sbrowser")" \
-    "$WORK_DIR/system/system/preload/SBrowser/SBrowser.apk"
+SBROWSER_APK="$WORK_DIR/system/system/preload/SBrowser/SBrowser.apk"
+SBROWSER_TMP="$SBROWSER_APK.download"
+SBROWSER_URL="$(GET_GALAXY_STORE_DOWNLOAD_URL "com.sec.android.app.sbrowser")" || SBROWSER_URL=""
+if [ "$SBROWSER_URL" ]; then
+    LOG "- Downloading Samsung Internet app"
+    if DOWNLOAD_FILE "$SBROWSER_URL" "$SBROWSER_TMP"; then
+        mv -f "$SBROWSER_TMP" "$SBROWSER_APK"
+    else
+        rm -f "$SBROWSER_TMP"
+        if [ -f "$SBROWSER_APK" ]; then
+            LOGW "Galaxy Store download failed; keeping Samsung Internet from the source firmware"
+        else
+            LOGW "Galaxy Store download failed; skipping Samsung Internet preload"
+        fi
+    fi
+elif [ -f "$SBROWSER_APK" ]; then
+    LOGW "Galaxy Store download is unavailable; keeping Samsung Internet from the source firmware"
+else
+    LOGW "Galaxy Store download is unavailable; skipping Samsung Internet preload"
+fi
+unset SBROWSER_APK SBROWSER_TMP SBROWSER_URL
 
 while IFS= read -r i; do
     i="${i//$WORK_DIR\/system\//}"
