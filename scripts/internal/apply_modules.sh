@@ -82,9 +82,13 @@ APPLY_SMALI_PATCHES()
         return 1
     fi
 
-    local TARGET_FILE="$WORK_DIR/$TARGET"
-    if [[ "$PARTITION" == "system_ext" ]] && ! $TARGET_OS_BUILD_SYSTEM_EXT_PARTITION; then
+    local TARGET_FILE
+    if [[ "$PARTITION" == "system" ]]; then
+        TARGET_FILE="$WORK_DIR/$PARTITION/$TARGET"
+    elif [[ "$PARTITION" == "system_ext" ]] && ! $TARGET_OS_BUILD_SYSTEM_EXT_PARTITION; then
         TARGET_FILE="$WORK_DIR/system/system/system_ext/${TARGET#system_ext/}"
+    else
+        TARGET_FILE="$WORK_DIR/$TARGET"
     fi
 
     if [ ! -f "$TARGET_FILE" ]; then
