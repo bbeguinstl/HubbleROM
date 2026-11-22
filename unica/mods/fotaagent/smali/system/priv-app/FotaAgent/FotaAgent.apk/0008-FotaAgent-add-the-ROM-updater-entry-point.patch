@@ -3,11 +3,7 @@ Subject: [PATCH 8/8] Add FotaAgent updater receiver for Android 17 beta
 diff --git a/AndroidManifest.xml b/AndroidManifest.xml
 --- a/AndroidManifest.xml
 +++ b/AndroidManifest.xml
-@@ -253,6 +253,11 @@
-         <activity android:exported="false" android:name="com.google.android.gms.common.api.GoogleApiActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
-         <receiver android:exported="false" android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"/>
-         <meta-data android:name="SPDE.build.signature" android:value="6ea9dede6ba444ade9cc15c70c0f220ce82a9f2b/190485652/fotaagent-release/FotaAgent-400000-4.7.09"/>
-         <meta-data android:name="SPDE.env.version" android:value="8.13.2/G37.2.9/1.2.19"/>
+@@ -253,1 +253,6 @@
 +        <receiver android:exported="true" android:name="io.unica.fota.UpdateReceiver" android:permission="android.permission.DUMP">
 +            <intent-filter>
 +                <action android:name="io.unica.fota.START_UPDATE"/>
