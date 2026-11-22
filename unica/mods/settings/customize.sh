@@ -92,12 +92,21 @@ SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
 MODEL_NAME_PROVIDER="$(find "$SECSETTINGS_APK" -type f \
     -path '*/com/samsung/android/settings/deviceinfo/aboutphone/ModelNameProvider.smali' \
     -printf '%P\n' -quit)"
-[ "$MODEL_NAME_PROVIDER" ] || ABORT "ModelNameProvider.smali not found"
-SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
-    "$MODEL_NAME_PROVIDER" "replace" \
-    'getModelName()Ljava/lang/String;' \
-    'ro.product.model' \
-    'ro.boot.em.model'
+if [ "$MODEL_NAME_PROVIDER" ]; then
+    SMALI_PATCH "system" "system/priv-app/SecSettings/SecSettings.apk" \
+        "$MODEL_NAME_PROVIDER" "replace" \
+        'getModelName()Ljava/lang/String;' \
+        'ro.product.model' \
+        'ro.boot.em.model'
+elif [ "$TARGET_ASSERT_MODEL" ]; then
+    # Android 17 beta Settings removed ModelNameProvider. Use the target model
+    # directly so About device does not keep the donor S26+ model number.
+    TARGET_MODEL_NAME="${TARGET_ASSERT_MODEL%%:*}"
+    LOGW "ModelNameProvider.smali is absent; setting ro.product.model to $TARGET_MODEL_NAME"
+    SET_PROP "system" "ro.product.model" "$TARGET_MODEL_NAME"
+else
+    LOGW "ModelNameProvider.smali is absent; keeping the current ro.product.model"
+fi
 
 LOG_STEP_IN "- Adding Hubble Settings"
 
@@ -242,7 +251,7 @@ if [[ "$(GET_PROP "ro.hwui.use_vulkan")" != "true" ]]; then
 fi
 
 unset PATCH_INST CONTENT SECSETTINGS_APK SOFTWARE_UPDATE_UTILS SOFTWARE_UPDATE_CONTROLLER
-unset ONEUI_VERSION_CONTROLLER MODEL_NAME_PROVIDER SEARCH_INDEXABLE_RESOURCES SEARCH_FEATURE_PROVIDER
+unset ONEUI_VERSION_CONTROLLER MODEL_NAME_PROVIDER TARGET_MODEL_NAME SEARCH_INDEXABLE_RESOURCES SEARCH_FEATURE_PROVIDER
 unset TOP_LEVEL_KEYS_COLLECTOR
 unset TOP_LEVEL_KEYS_FILE TOP_LEVEL_KEYS_LOCALS TOP_LEVEL_KEYS_ARRAY
 unset TOP_LEVEL_KEYS_LAST_REGISTER TOP_LEVEL_KEYS_NEW_REGISTER TOP_LEVEL_KEYS_NEW_LOCALS
