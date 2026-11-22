@@ -1611,6 +1611,7 @@ if [[ "$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION" != "$TARGET_WLAN_CONFIG_C
                 "$TARGET_WLAN_CONFIG_CONNECTION_PERSONALIZATION" | \
                 sed "s/CONFIG_CONNECTION_PERSONALIZATION/$SOURCE_WLAN_CONFIG_CONNECTION_PERSONALIZATION/g"
         fi
+        DECODE_APK "system" "system/priv-app/SecSettings/SecSettings.apk"
         BTM_CONTROLLER="$(find "$APKTOOL_DIR/system/priv-app/SecSettings/SecSettings.apk" \
             -path '*/com/samsung/android/settings/wifi/develop/*/btm/BtmController.smali' \
             -printf '%P\n' -quit)"
