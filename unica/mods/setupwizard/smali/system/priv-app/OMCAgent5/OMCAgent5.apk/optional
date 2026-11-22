@@ -1,0 +1,2 @@
+# The One UI 9.5 beta changed OMCAgent's obfuscated catalogue loader.
+# Keep the donor implementation when this nonessential patch no longer matches.

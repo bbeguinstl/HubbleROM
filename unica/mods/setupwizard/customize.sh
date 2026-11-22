@@ -25,10 +25,10 @@ fi
 unset NAV_STEP_FILE
 
 # Keep the OMCAgent "Recommended apps" step, fed only by the system catalogue.
-# The OMCAgent5 smali patch in this module makes its catalogue loader read
-# /system/etc/omcagent/unica_appres.json and ignore the target firmware's
-# regional /prism catalogue (and the downloaded list); OMCAgent's providers
-# still download and install each app.
+# On donors whose OMCAgent smali matches, the optional patch makes its
+# catalogue loader read /system/etc/omcagent/unica_appres.json and ignore the
+# target firmware's regional /prism catalogue (and downloaded list). On beta
+# builds where Samsung changes the obfuscated loader, keep the donor behavior.
 LOG "- Adding the system recommended-app catalogue for OMCAgent"
 EVAL "mkdir -p \"$WORK_DIR/system/system/etc/omcagent\""
 EVAL "cp -a \"$MODPATH/omcagent/unica_appres.json\" \"$WORK_DIR/system/system/etc/omcagent/unica_appres.json\""
