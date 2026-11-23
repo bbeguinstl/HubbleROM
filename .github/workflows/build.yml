@@ -311,7 +311,9 @@ jobs:
                 gh release upload "$TAG_NAME" "$part" \
                   --repo "$RELEASE_REPO" --clobber
                 PART_URL="https://github.com/$RELEASE_REPO/releases/download/$TAG_NAME/$PART_NAME"
-                PART_LINKS+=("$PART_URL")
+                if [[ "$PART_NAME" == "$FILE_NAME".part_* ]]; then
+                  PART_LINKS+=("$PART_URL")
+                fi
               done
             fi
 
