@@ -323,6 +323,7 @@ jobs:
               git checkout seventeen
               mkdir -p updater
               XML_FILE="updater/v2/${{ matrix.target }}.xml"
+              mkdir -p "$(dirname "$XML_FILE")"
 
               {
                 echo '<?xml version="1.0" encoding="UTF-8"?>'
