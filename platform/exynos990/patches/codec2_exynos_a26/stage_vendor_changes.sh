@@ -101,6 +101,7 @@ chmod 644 "$V/etc/init/samsung.hardware.media.c2@1.2-service.rc" \
     echo "vendor/etc/init/samsung.hardware.media.c2@1.2-service.rc 0 0 0644"
     echo "vendor/etc/vintf/manifest/sec_c2_manifest_default.xml 0 0 0644"
     echo "vendor/etc/media_codecs_c2.xml 0 0 0644"
+    echo "vendor/etc/seccomp_policy 0 0 0755"
     echo "vendor/etc/seccomp_policy/codec2.vendor.base.policy 0 0 0644"
     echo "vendor/etc/seccomp_policy/codec2.vendor.ext.policy 0 0 0644"
 } > "$OUT/fs_config"
@@ -110,6 +111,7 @@ cat > "$OUT/file_contexts" <<'EOF'
 /vendor/etc/init/samsung\.hardware\.media\.c2@1\.2-service\.rc u:object_r:vendor_configs_file:s0
 /vendor/etc/vintf/manifest/sec_c2_manifest_default\.xml u:object_r:vendor_configs_file:s0
 /vendor/etc/media_codecs_c2\.xml u:object_r:vendor_configs_file:s0
+/vendor/etc/seccomp_policy u:object_r:vendor_configs_file:s0
 /vendor/etc/seccomp_policy/codec2\.vendor\.base\.policy u:object_r:vendor_configs_file:s0
 /vendor/etc/seccomp_policy/codec2\.vendor\.ext\.policy u:object_r:vendor_configs_file:s0
 EOF

@@ -12,6 +12,12 @@ bash "$MODPATH/stage_vendor_changes.sh" "$C2_STAGE" > /dev/null || {
     return 1
 }
 
+# ADD_TO_WORK_DIR reads the conventional per-partition metadata filenames.
+# Preserve the staged file and directory labels so new parent directories,
+# such as vendor/etc/seccomp_policy, don't get emitted without a SELinux type.
+cp -a "$C2_STAGE/fs_config" "$C2_STAGE/fs_config-vendor" || return 1
+cp -a "$C2_STAGE/file_contexts" "$C2_STAGE/file_context-vendor" || return 1
+
 ADD_TO_WORK_DIR "$C2_STAGE" "vendor" "bin/hw/samsung.hardware.media.c2@1.2-service" \
     0 2000 755 "u:object_r:mediacodec_exec:s0" || return 1
 for C2_LIB in "$C2_STAGE"/vendor/lib64/*.so; do
