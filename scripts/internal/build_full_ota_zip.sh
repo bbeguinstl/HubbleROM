@@ -357,6 +357,11 @@ if $SEVENZIP_MODULE_LINKED; then
     rm -f "$TMP_DIR/7z.so"
 fi
 
+# The ZIP now contains every block payload. Drop the staged copies before
+# signing: signapk needs room for both the unsigned input ZIP and signed output.
+rm -f -- "$TMP_DIR"/*.new.dat "$TMP_DIR"/*.new.dat.br \
+    "$TMP_DIR"/*.patch.dat "$TMP_DIR"/*.transfer.list "$TMP_DIR"/*.map
+
 if ! $DEBUG || $ROM_IS_OFFICIAL; then
     LOG "- Signing zip"
     EVAL "signapk -w \"$PUBLIC_KEY_PATH\" \"$PRIVATE_KEY_PATH\" \"$TMP_DIR/rom.zip\" \"$OUTPUT_FILE\"" || exit 1

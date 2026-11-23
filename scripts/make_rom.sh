@@ -422,6 +422,15 @@ if $BUILD_ROM; then
     fi
     UPDATE_APK_CACHE || exit 1
 
+    # APK/JAR work is complete before target-files are created. GitHub Actions
+    # restores this cache on the next run, so drop only the decoded sources here
+    # to make room for the multi-gigabyte OTA payloads and signed ZIP.
+    if [ -n "${GITHUB_ACTIONS:-}" ] && [ -d "$APK_DECODE_CACHE_DIR" ]; then
+        du -sh "$APK_DECODE_CACHE_DIR"
+        LOG "- Removing decoded APK cache before OTA packaging"
+        rm -rf -- "$APK_DECODE_CACHE_DIR"
+    fi
+
     echo -n "$(GET_WORK_DIR_HASH)" > "$WORK_DIR/.completed"
 fi
 

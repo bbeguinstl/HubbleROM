@@ -165,6 +165,14 @@ jobs:
           source ./buildenv.sh ${{ matrix.target }}
           ./scripts/extract_fw.sh
 
+      - name: Remove downloaded firmware archives
+        run: |
+          if [ -d out/firmware-cache ]; then
+            du -sh out/firmware-cache
+            rm -rf out/firmware-cache
+          fi
+          df -h .
+
       - name: Add swap space
         run: |
           EXISTING_SWAP=$(swapon --noheadings --show=NAME | head -n 1)
@@ -201,7 +209,7 @@ jobs:
           key: ${{ runner.os }}-rom-tools-${{ steps.rom-tools-cache-key.outputs.key }}
 
       - name: Save APK cache after a failed build
-        if: failure()
+        if: ${{ failure() && hashFiles('out/target/y2s/apk_cache/**') != '' }}
         uses: actions/cache/save@v4
         with:
           path: |
